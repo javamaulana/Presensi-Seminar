@@ -1,0 +1,70 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <style>
+      @page {
+        size: A4 landscape;
+        margin: 0;
+      }
+
+      body {
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        color: #1d2a2f;
+      }
+
+      .certificate {
+        width: 297mm;
+        height: 210mm;
+        position: relative;
+        overflow: hidden;
+        background-image: url("<?= backgroundDataUri ?>");
+        background-size: cover;
+        background-position: center;
+      }
+
+      .name {
+        position: absolute;
+        left: 34mm;
+        right: 34mm;
+        top: 94mm;
+        text-align: center;
+        font-size: 34pt;
+        line-height: 1.1;
+        font-weight: 700;
+        color: #133d3b;
+      }
+
+      .event {
+        position: absolute;
+        left: 48mm;
+        right: 48mm;
+        top: 124mm;
+        text-align: center;
+        font-family: Arial, sans-serif;
+        font-size: 13pt;
+        line-height: 1.6;
+      }
+
+      .number {
+        position: absolute;
+        left: 28mm;
+        bottom: 18mm;
+        font-family: Arial, sans-serif;
+        font-size: 9pt;
+        color: #425157;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="certificate">
+      <div class="name"><?= fullName ?></div>
+      <div class="event">
+        Telah berpartisipasi dalam <?= eventName ?><br>
+        <?= eventDate ?>
+      </div>
+      <div class="number">No. <?= certificateNumber ?></div>
+    </section>
+  </body>
+</html>

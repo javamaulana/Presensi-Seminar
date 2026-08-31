@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Presensi Seminar Kewirausahaan</title>
+    <meta
+      name="description"
+      content="Presensi seminar kewirausahaan dan pengiriman sertifikat otomatis melalui email."
+    >
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    >
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="page-shell">
+      <section class="hero" aria-labelledby="page-title">
+        <img class="hero__image" src="assets/seminar-hero.png" alt="">
+        <div class="hero__overlay"></div>
+
+        <nav class="topbar" aria-label="Informasi acara">
+          <span class="brand">Seminar Kewirausahaan</span>
+          <span class="topbar__badge">Presensi & Sertifikat</span>
+        </nav>
+
+        <div class="hero__content">
+          <div class="hero__copy">
+            <p class="eyebrow">Rangkaian Projek Mata Kuliah Kewirausahaan</p>
+            <h1 id="page-title">Presensi peserta seminar</h1>
+            <p class="hero__lead">
+              Isi data kehadiran dengan nama yang benar. Sertifikat digital akan
+              dikirim otomatis ke email peserta setelah presensi berhasil.
+            </p>
+
+            <div class="event-strip" aria-label="Detail acara">
+              <div>
+                <span>Tanggal</span>
+                <strong>Sesuaikan di HTML</strong>
+              </div>
+              <div>
+                <span>Lokasi</span>
+                <strong>Kampus / Online</strong>
+              </div>
+              <div>
+                <span>Sertifikat</span>
+                <strong>Dikirim ke email</strong>
+              </div>
+            </div>
+          </div>
+
+          <form class="form-card" id="attendanceForm">
+            <div class="form-card__header">
+              <span class="form-card__label">Form presensi</span>
+              <h2>Data peserta</h2>
+            </div>
+
+            <label class="field">
+              <span>Nama lengkap</span>
+              <input
+                id="fullName"
+                name="fullName"
+                type="text"
+                autocomplete="name"
+                placeholder="Contoh: Aulia Rahma Putri"
+                required
+              >
+            </label>
+
+            <label class="field">
+              <span>Email aktif</span>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autocomplete="email"
+                placeholder="nama@email.com"
+                required
+              >
+            </label>
+
+            <label class="field">
+              <span>NIM / Nomor identitas</span>
+              <input
+                id="studentId"
+                name="studentId"
+                type="text"
+                autocomplete="off"
+                placeholder="Masukkan NIM atau tanda -"
+                required
+              >
+            </label>
+
+            <label class="field">
+              <span>Asal instansi / kelas</span>
+              <input
+                id="institution"
+                name="institution"
+                type="text"
+                autocomplete="organization"
+                placeholder="Contoh: Manajemen 4A"
+                required
+              >
+            </label>
+
+            <button class="submit-button" type="submit">
+              <span>Kirim presensi</span>
+              <svg aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M5 12h14M13 5l7 7-7 7" />
+              </svg>
+            </button>
+
+            <p class="status" id="formStatus" role="status" aria-live="polite"></p>
+          </form>
+        </div>
+      </section>
+
+      <section class="info-band" aria-label="Alur sertifikat">
+        <div class="info-band__inner">
+          <article>
+            <span>01</span>
+            <h2>Peserta mengisi presensi</h2>
+            <p>Nama peserta akan dipakai persis untuk sertifikat, jadi form menekankan email aktif dan nama lengkap.</p>
+          </article>
+          <article>
+            <span>02</span>
+            <h2>Data masuk Google Sheet</h2>
+            <p>Panitia tetap punya rekap peserta yang bisa dicek, diedit, atau diunduh kapan saja.</p>
+          </article>
+          <article>
+            <span>03</span>
+            <h2>Sertifikat terkirim otomatis</h2>
+            <p>Google Apps Script membuat PDF dari template Canva lalu mengirimkannya melalui email.</p>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
