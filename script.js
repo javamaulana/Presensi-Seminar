@@ -1,5 +1,5 @@
 const CONFIG = {
-  appsScriptUrl: "PASTE_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE",
+  appsScriptUrl: "https://script.google.com/macros/s/AKfycbw2Ez0d_dDOyKSqqJ6kGjsiOGw-1mHHNCuNt8XT2pv2GsSLyDAM8UUYHW5Q1sDfJ-oYew/exec",
   eventName: "Seminar Kewirausahaan",
 };
 
