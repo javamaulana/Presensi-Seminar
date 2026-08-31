@@ -16,7 +16,6 @@ Untuk sekitar 100 peserta, setup ini masih cocok. Agar tidak masuk spam, hindari
 - `index.html`: halaman presensi
 - `styles.css`: tampilan web
 - `script.js`: koneksi form ke Google Apps Script
-- `assets/seminar-hero.png`: gambar hero web
 - `netlify.toml`: konfigurasi hosting Netlify
 - `apps-script/Code.gs`: backend Google Apps Script
 
