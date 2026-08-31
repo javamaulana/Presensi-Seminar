@@ -1,10 +1,8 @@
 const CONFIG = {
   SHEET_NAME: "Presensi",
   EVENT_NAME: "Seminar Kewirausahaan",
-  EVENT_DATE: "Sesuaikan tanggal acara",
   ORGANIZER_NAME: "Panitia Seminar Kewirausahaan",
-  CERTIFICATE_BACKGROUND_FILE_ID: "PASTE_CANVA_CERTIFICATE_IMAGE_FILE_ID_HERE",
-  CERTIFICATE_FOLDER_ID: "PASTE_DRIVE_FOLDER_ID_FOR_CERTIFICATES_HERE",
+  CERTIFICATE_FOLDER_ID: "PASTE_DRIVE_FOLDER_ID_THAT_CONTAINS_CANVA_CERTIFICATES_HERE",
   EMAIL_SUBJECT: "Sertifikat Seminar Kewirausahaan",
 };
 
@@ -18,11 +16,7 @@ function doPost(e) {
 
     const sheet = getSheet_();
     const existingRow = findExistingEmailRow_(sheet, payload.email);
-    const certificateNumber = existingRow
-      ? sheet.getRange(existingRow, 7).getValue()
-      : createCertificateNumber_(sheet);
-
-    const pdfFile = createCertificatePdf_(payload, certificateNumber);
+    const certificateFile = findCertificateFile_(payload);
 
     if (existingRow) {
       sheet.getRange(existingRow, 1, 1, 9).setValues([[
@@ -32,8 +26,8 @@ function doPost(e) {
         payload.studentId,
         payload.institution,
         payload.eventName || CONFIG.EVENT_NAME,
-        certificateNumber,
-        pdfFile.getUrl(),
+        certificateFile.getName(),
+        certificateFile.getUrl(),
         "Dikirim ulang",
       ]]);
     } else {
@@ -44,14 +38,14 @@ function doPost(e) {
         payload.studentId,
         payload.institution,
         payload.eventName || CONFIG.EVENT_NAME,
-        certificateNumber,
-        pdfFile.getUrl(),
+        certificateFile.getName(),
+        certificateFile.getUrl(),
         "Terkirim",
       ]);
     }
 
-    sendCertificateEmail_(payload, pdfFile, certificateNumber);
-    return json_({ ok: true, certificateNumber });
+    sendCertificateEmail_(payload, certificateFile);
+    return json_({ ok: true, certificateUrl: certificateFile.getUrl() });
   } catch (error) {
     return json_({ ok: false, message: error.message });
   } finally {
@@ -93,7 +87,7 @@ function getSheet_() {
       "NIM / Identitas",
       "Instansi / Kelas",
       "Acara",
-      "Nomor Sertifikat",
+      "File Sertifikat",
       "Link Sertifikat",
       "Status",
     ]);
@@ -118,43 +112,57 @@ function findExistingEmailRow_(sheet, email) {
   return 0;
 }
 
-function createCertificateNumber_(sheet) {
-  const sequence = Math.max(sheet.getLastRow(), 1);
-  return `SKW-${new Date().getFullYear()}-${String(sequence).padStart(4, "0")}`;
-}
-
-function createCertificatePdf_(payload, certificateNumber) {
-  const backgroundFile = DriveApp.getFileById(CONFIG.CERTIFICATE_BACKGROUND_FILE_ID);
-  const backgroundBlob = backgroundFile.getBlob();
-  const backgroundBase64 = Utilities.base64Encode(backgroundBlob.getBytes());
-  const backgroundMime = backgroundBlob.getContentType();
-
-  const template = HtmlService.createTemplateFromFile("certificate");
-  template.fullName = payload.fullName;
-  template.eventName = payload.eventName || CONFIG.EVENT_NAME;
-  template.eventDate = CONFIG.EVENT_DATE;
-  template.certificateNumber = certificateNumber;
-  template.backgroundDataUri = `data:${backgroundMime};base64,${backgroundBase64}`;
-
-  const html = template.evaluate().getContent();
-  const fileName = `Sertifikat - ${payload.fullName}`.replace(/[\\/:*?"<>|]/g, "");
-  const pdfBlob = Utilities
-    .newBlob(html, "text/html", `${fileName}.html`)
-    .getAs("application/pdf")
-    .setName(`${fileName}.pdf`);
-
+function findCertificateFile_(payload) {
   const folder = DriveApp.getFolderById(CONFIG.CERTIFICATE_FOLDER_ID);
-  return folder.createFile(pdfBlob);
+  const files = folder.getFiles();
+  const normalizedName = normalizeText_(payload.fullName);
+  const normalizedStudentId = normalizeText_(payload.studentId || "");
+  const matches = [];
+
+  while (files.hasNext()) {
+    const file = files.next();
+    const fileName = normalizeText_(removeExtension_(file.getName()));
+
+    if (fileName.includes(normalizedName)) {
+      matches.push(file);
+    }
+  }
+
+  if (matches.length === 0) {
+    throw new Error(`Sertifikat atas nama ${payload.fullName} belum ditemukan di folder Drive.`);
+  }
+
+  if (matches.length === 1 || !normalizedStudentId || normalizedStudentId === "-") {
+    return matches[0];
+  }
+
+  const studentIdMatch = matches.find((file) => {
+    return normalizeText_(file.getName()).includes(normalizedStudentId);
+  });
+
+  return studentIdMatch || matches[0];
 }
 
-function sendCertificateEmail_(payload, pdfFile, certificateNumber) {
+function normalizeText_(value) {
+  return String(value)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function removeExtension_(fileName) {
+  return String(fileName).replace(/\.[^/.]+$/, "");
+}
+
+function sendCertificateEmail_(payload, certificateFile) {
   const body = [
     `Halo ${payload.fullName},`,
     "",
     `Terima kasih sudah mengikuti ${payload.eventName || CONFIG.EVENT_NAME}.`,
     `Sertifikat kamu terlampir dalam email ini.`,
-    "",
-    `Nomor sertifikat: ${certificateNumber}`,
     "",
     `Salam,`,
     CONFIG.ORGANIZER_NAME,
@@ -164,7 +172,7 @@ function sendCertificateEmail_(payload, pdfFile, certificateNumber) {
     to: payload.email,
     subject: CONFIG.EMAIL_SUBJECT,
     body,
-    attachments: [pdfFile.getBlob()],
+    attachments: [certificateFile.getBlob()],
     name: CONFIG.ORGANIZER_NAME,
   });
 }
