@@ -108,6 +108,7 @@ const nameManualInput = document.querySelector("#nameManual");
 const nimManualInput = document.querySelector("#nimManual");
 const emailInput = document.querySelector("#email");
 const certInfoBox = document.querySelector("#certInfoBox");
+const certInfoText = document.querySelector("#certInfoText");
 const statusEl = document.querySelector("#formStatus");
 const submitButton = form.querySelector("button[type='submit']");
 
@@ -154,7 +155,14 @@ function handleParticipantTypeChange() {
   // Hide/show sections
   mahasiswaSection.style.display = selectedType === "mahasiswa" ? "block" : "none";
   umumSection.style.display = selectedType === "umum" ? "block" : "none";
-  certInfoBox.style.display = selectedType ? "block" : "none";
+  
+  // Show info box only for umum participants
+  if (selectedType === "umum") {
+    certInfoBox.style.display = "block";
+    certInfoText.innerHTML = 'ℹ️ Sertifikat akan dikirim paling lama <strong>24 jam</strong> setelah verifikasi data Anda.';
+  } else {
+    certInfoBox.style.display = "none";
+  }
   
   // Reset form fields
   if (selectedType !== "mahasiswa") {
@@ -206,7 +214,7 @@ function validatePayload(payload) {
   }
 
   if (!selectedType) {
-    return "Pilih tipe peserta terlebih dahulu.";
+    return "Pilih kategori peserta terlebih dahulu.";
   }
 
   if (selectedType === "mahasiswa") {
@@ -272,10 +280,15 @@ form.addEventListener("submit", async (event) => {
       body: JSON.stringify(payload),
     });
 
+    const selectedType = participantTypeSelect.value;
+    const successMessage = selectedType === "umum" 
+      ? "Presensi terkirim. Sertifikat akan dikirim paling lama 24 jam ke email Anda."
+      : "Presensi berhasil dicatat. Sertifikat akan dikirim ke email Anda.";
+    
     form.reset();
     participantTypeSelect.value = "";
     handleParticipantTypeChange();
-    setStatus("Presensi terkirim. Sertifikat akan dikirim ke email dalam 24 jam.", "is-success");
+    setStatus(successMessage, "is-success");
   } catch (error) {
     setStatus("Gagal mengirim presensi. Coba lagi atau hubungi panitia.", "is-error");
   } finally {
