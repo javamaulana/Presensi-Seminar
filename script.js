@@ -96,10 +96,18 @@ const PARTICIPANTS = [
   { className: "KBI", name: "Desy Fadilla", nim: "2410431038" },
 ];
 
+// DOM Elements
 const form = document.querySelector("#attendanceForm");
+const participantTypeSelect = document.querySelector("#participantType");
+const mahasiswaSection = document.querySelector("#mahasiswaSection");
+const umumSection = document.querySelector("#umumSection");
 const classSelect = document.querySelector("#className");
 const nameSelect = document.querySelector("#fullName");
 const studentIdInput = document.querySelector("#studentId");
+const nameManualInput = document.querySelector("#nameManual");
+const nimManualInput = document.querySelector("#nimManual");
+const emailInput = document.querySelector("#email");
+const certInfoBox = document.querySelector("#certInfoBox");
 const statusEl = document.querySelector("#formStatus");
 const submitButton = form.querySelector("button[type='submit']");
 
@@ -140,31 +148,81 @@ function getSelectedParticipant() {
   });
 }
 
-function getFormPayload() {
-  const formData = new FormData(form);
-  const participant = getSelectedParticipant();
+function handleParticipantTypeChange() {
+  const selectedType = participantTypeSelect.value;
+  
+  // Hide/show sections
+  mahasiswaSection.style.display = selectedType === "mahasiswa" ? "block" : "none";
+  umumSection.style.display = selectedType === "umum" ? "block" : "none";
+  certInfoBox.style.display = selectedType ? "block" : "none";
+  
+  // Reset form fields
+  if (selectedType !== "mahasiswa") {
+    classSelect.value = "";
+    nameSelect.value = "";
+    studentIdInput.value = "";
+    nameSelect.disabled = true;
+  }
+  
+  if (selectedType !== "umum") {
+    nameManualInput.value = "";
+    nimManualInput.value = "";
+  }
+  
+  emailInput.value = "";
+  setStatus("");
+}
 
+function getFormPayload() {
+  const selectedType = participantTypeSelect.value;
+  const formData = new FormData(form);
+  
+  let fullName, nim;
+  
+  if (selectedType === "mahasiswa") {
+    const participant = getSelectedParticipant();
+    fullName = participant?.name || "";
+    nim = participant?.nim || "";
+  } else if (selectedType === "umum") {
+    fullName = String(nameManualInput.value).trim();
+    nim = String(nimManualInput.value).trim();
+  }
+  
   return {
-    fullName: participant?.name || String(formData.get("fullName") || "").trim(),
-    email: String(formData.get("email") || "").trim().toLowerCase(),
-    studentId: participant?.nim || String(formData.get("studentId") || "").trim(),
-    institution: String(formData.get("institution") || "").trim(),
+    fullName,
+    email: String(emailInput.value || "").trim().toLowerCase(),
+    studentId: nim,
+    institution: selectedType === "mahasiswa" ? String(classSelect.value || "").trim() : "Umum",
     eventName: CONFIG.eventName,
     submittedAt: new Date().toISOString(),
   };
 }
 
 function validatePayload(payload) {
+  const selectedType = participantTypeSelect.value;
+  
   if (CONFIG.appsScriptUrl.includes("PASTE_GOOGLE_APPS_SCRIPT")) {
     return "URL Google Apps Script belum dipasang.";
   }
 
-  if (!classSelect.value) {
-    return "Pilih kelas terlebih dahulu.";
+  if (!selectedType) {
+    return "Pilih tipe peserta terlebih dahulu.";
   }
 
-  if (!getSelectedParticipant()) {
-    return "Pilih nama peserta.";
+  if (selectedType === "mahasiswa") {
+    if (!classSelect.value) {
+      return "Pilih kelas terlebih dahulu.";
+    }
+    if (!getSelectedParticipant()) {
+      return "Pilih nama peserta.";
+    }
+  } else if (selectedType === "umum") {
+    if (!nameManualInput.value.trim()) {
+      return "Masukkan nama Anda.";
+    }
+    if (!nimManualInput.value.trim()) {
+      return "Masukkan NIM atau no. identitas.";
+    }
   }
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) {
@@ -173,6 +231,11 @@ function validatePayload(payload) {
 
   return "";
 }
+
+// Event Listeners
+participantTypeSelect.addEventListener("change", () => {
+  handleParticipantTypeChange();
+});
 
 classSelect.addEventListener("change", () => {
   populateNames(classSelect.value);
@@ -210,8 +273,9 @@ form.addEventListener("submit", async (event) => {
     });
 
     form.reset();
-    populateNames("");
-    setStatus("Presensi terkirim. Sertifikat akan dikirim ke email.", "is-success");
+    participantTypeSelect.value = "";
+    handleParticipantTypeChange();
+    setStatus("Presensi terkirim. Sertifikat akan dikirim ke email dalam 24 jam.", "is-success");
   } catch (error) {
     setStatus("Gagal mengirim presensi. Coba lagi atau hubungi panitia.", "is-error");
   } finally {

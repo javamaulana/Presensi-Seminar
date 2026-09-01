@@ -161,6 +161,39 @@ select {
   font-weight: 700;
 }
 
+.form-section {
+  animation: fadeIn 200ms ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.info-box {
+  margin: 16px 0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #eff8f7;
+  border-left: 4px solid var(--focus);
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.info-box p {
+  margin: 0;
+}
+
+.info-box strong {
+  color: var(--focus);
+  font-weight: 700;
+}
+
 @media (max-width: 420px) {
   .attendance-card {
     padding: 22px;

@@ -22,23 +22,48 @@
         </header>
 
         <label class="field">
-          <span>Kelas</span>
-          <select id="className" name="institution" required>
-            <option value="">Pilih kelas</option>
+          <span>Tipe Peserta</span>
+          <select id="participantType" name="participantType" required>
+            <option value="">Pilih tipe peserta</option>
+            <option value="mahasiswa">Mahasiswa Kewirausahaan</option>
+            <option value="umum">Umum</option>
           </select>
         </label>
 
-        <label class="field">
-          <span>Nama</span>
-          <select id="fullName" name="fullName" required disabled>
-            <option value="">Pilih kelas dulu</option>
-          </select>
-        </label>
+        <!-- Section for Mahasiswa Kewirausahaan -->
+        <div id="mahasiswaSection" class="form-section" style="display: none;">
+          <label class="field">
+            <span>Kelas</span>
+            <select id="className" name="institution" required>
+              <option value="">Pilih kelas</option>
+            </select>
+          </label>
 
-        <label class="field">
-          <span>NIM</span>
-          <input id="studentId" name="studentId" type="text" readonly placeholder="Terisi otomatis">
-        </label>
+          <label class="field">
+            <span>Nama</span>
+            <select id="fullName" name="fullName" required disabled>
+              <option value="">Pilih kelas dulu</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>NIM</span>
+            <input id="studentId" name="studentId" type="text" readonly placeholder="Terisi otomatis">
+          </label>
+        </div>
+
+        <!-- Section for Umum -->
+        <div id="umumSection" class="form-section" style="display: none;">
+          <label class="field">
+            <span>Nama</span>
+            <input id="nameManual" name="nameManual" type="text" placeholder="Masukkan nama lengkap">
+          </label>
+
+          <label class="field">
+            <span>NIM / No. Identitas</span>
+            <input id="nimManual" name="nimManual" type="text" placeholder="Masukkan NIM atau no. identitas">
+          </label>
+        </div>
 
         <label class="field">
           <span>Email aktif</span>
@@ -52,11 +77,15 @@
           >
         </label>
 
+        <div class="info-box" id="certInfoBox" style="display: none;">
+          <p>ℹ️ Sertifikat akan dikirim paling lama <strong>24 jam</strong> ke email Anda.</p>
+        </div>
+
         <button class="submit-button" type="submit">Kirim Presensi</button>
         <p class="status" id="formStatus" role="status" aria-live="polite"></p>
       </form>
     </main>
 
-    <script src="script.js?v=20260831-1"></script>
+    <script src="script.js?v=20260901-1"></script>
   </body>
 </html>
