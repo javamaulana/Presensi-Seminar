@@ -81,7 +81,10 @@ function validatePayload_(payload) {
 }
 
 function getSheet_() {
-  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const spreadsheetId = PropertiesService.getScriptProperties().getProperty("ATTENDANCE_SPREADSHEET_ID");
+  const spreadsheet = spreadsheetId
+    ? SpreadsheetApp.openById(spreadsheetId)
+    : SpreadsheetApp.getActiveSpreadsheet();
   let sheet = spreadsheet.getSheetByName(CONFIG.SHEET_NAME);
 
   if (!sheet) {
@@ -202,6 +205,56 @@ function sendPendingCertificateEmail_(payload) {
     ].join("\n"),
     name: CONFIG.ORGANIZER_NAME,
   });
+}
+
+function setupAutomaticCertificates() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  if (!spreadsheet) throw new Error("Buka Apps Script dari Google Sheet rekap presensi.");
+  DriveApp.getFolderById(CONFIG.CERTIFICATE_FOLDER_ID).getName();
+  MailApp.getRemainingDailyQuota();
+  PropertiesService.getScriptProperties().setProperty("ATTENDANCE_SPREADSHEET_ID", spreadsheet.getId());
+  const handler = "sendPendingCertificates";
+  const existing = ScriptApp.getProjectTriggers().filter(trigger => trigger.getHandlerFunction() === handler);
+  if (existing.length === 0) ScriptApp.newTrigger(handler).timeBased().everyMinutes(5).create();
+}
+
+function sendPendingCertificates() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(1000)) return;
+  const startedAt = Date.now();
+  try {
+    const sheet = getSheet_();
+    if (sheet.getLastRow() < 2) return;
+    const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 9).getValues();
+    let quota = MailApp.getRemainingDailyQuota();
+    for (let index = 0; index < rows.length; index += 1) {
+      if (quota < 1 || Date.now() - startedAt > 240000) break;
+      const row = rows[index];
+      if (row[8] !== "Menunggu sertifikat") continue;
+      const payload = {
+        fullName: String(row[1]).trim(), email: String(row[2]).trim(),
+        studentId: String(row[3]).trim(), institution: String(row[4]).trim(),
+        eventName: String(row[5]).trim(),
+      };
+      try {
+        validatePayload_(payload);
+        const file = findCertificateFile_(payload);
+        if (!file) continue;
+        const resultRange = sheet.getRange(index + 2, 7, 1, 3);
+        // Interrupted sends require review to avoid duplicate emails.
+        resultRange.setValues([[file.getName(), file.getUrl(), "Perlu cek pengiriman"]]);
+        SpreadsheetApp.flush();
+        sendCertificateEmail_(payload, file);
+        quota -= 1;
+        resultRange.setValues([[file.getName(), file.getUrl(), "Terkirim otomatis"]]);
+        SpreadsheetApp.flush();
+      } catch (error) {
+        console.error(`Baris ${index + 2}: ${error.message}`);
+      }
+    }
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function json_(data) {

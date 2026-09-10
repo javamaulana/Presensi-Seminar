@@ -27,6 +27,7 @@ assert.equal(run('validatePayload(getFormPayload())'), '');
 let files = [], emails = [], rows = [], existing = false, mailFails = false;
 const sheet = { getLastRow: () => existing ? 2 : 1, appendRow: row => rows.push(row), getRange: () => ({ getValues: () => [['test@example.com']], setValues: values => rows.push(...values) }) };
 const backend = vm.createContext({
+  PropertiesService: { getScriptProperties: () => ({ getProperty: () => null }) },
   LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
   SpreadsheetApp: { getActiveSpreadsheet: () => ({ getSheetByName: () => sheet }) },
   DriveApp: { getFolderById: () => { const remaining = [...files]; return { getFiles: () => ({ hasNext: () => remaining.length > 0, next: () => remaining.shift() }) }; } },
