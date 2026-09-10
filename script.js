@@ -155,6 +155,15 @@ function handleParticipantTypeChange() {
   // Hide/show sections
   mahasiswaSection.style.display = selectedType === "mahasiswa" ? "block" : "none";
   umumSection.style.display = selectedType === "umum" ? "block" : "none";
+
+  // Hidden category fields must not participate in browser validation.
+  classSelect.disabled = selectedType !== "mahasiswa";
+  nameSelect.disabled = selectedType !== "mahasiswa" || !classSelect.value;
+  studentIdInput.disabled = selectedType !== "mahasiswa";
+  nameManualInput.disabled = selectedType !== "umum";
+  nimManualInput.disabled = selectedType !== "umum";
+  nameManualInput.required = selectedType === "umum";
+  nimManualInput.required = selectedType === "umum";
   
   // Show info box only for umum participants
   if (selectedType === "umum") {
@@ -298,3 +307,4 @@ form.addEventListener("submit", async (event) => {
 
 populateClasses();
 populateNames("");
+handleParticipantTypeChange();
