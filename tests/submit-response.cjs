@@ -9,11 +9,13 @@ async function scenario(result, networkError = false, httpStatus = 200) {
     querySelector: () => get('button'), reset: () => resets++,
   };
   const storage = new Map();
-  const context = vm.createContext({ localStorage: { getItem: k => storage.get(k), setItem: (k,v) => storage.set(k,v) }, crypto: require('node:crypto').webcrypto, document: { querySelector: get, createElement: () => ({}) },
+  const context = vm.createContext({ TypeError, setTimeout: fn => fn(), localStorage: { getItem: k => storage.get(k), setItem: (k,v) => storage.set(k,v) }, crypto: require('node:crypto').webcrypto, document: { querySelector: get, createElement: () => ({}) },
     fetch: async (_, options) => {
       requests++;
       assert.equal(options.mode, 'cors');
-      if (networkError) throw Error('Network failed');
+      assert.equal(options.credentials, 'omit');
+      assert.equal(JSON.parse(options.body).deviceId, storage.get('semkwu26.browser-id'));
+      if (networkError && (networkError !== 'once' || requests === 1)) throw new TypeError('Network failed');
       return { ok: httpStatus === 200, status: httpStatus, json: async () => { if (result === 'html') throw new SyntaxError('HTML'); return result; } };
     },
   });
@@ -31,7 +33,7 @@ async function scenario(result, networkError = false, httpStatus = 200) {
     }));
     assert.equal(get('button').disabled, true);
   }
-  return { storage, resets, status: get('#formStatus') };
+  return { requests, storage, resets, status: get('#formStatus') };
 }
 (async () => {
   for (const status of ['sent', 'pending', 'pending_error', 'review']) {
@@ -42,7 +44,12 @@ async function scenario(result, networkError = false, httpStatus = 200) {
     assert.equal(outcome.resets, 0);
     assert.ok(outcome.status.className.includes('is-error'));
   }
-  assert.equal((await scenario(null, true)).resets, 0);
+  const failed = await scenario(null, true);
+  assert.equal(failed.resets, 0);
+  assert.equal(failed.requests, 2);
+  const recovered = await scenario({ok:true,status:'pending'}, 'once');
+  assert.equal(recovered.requests, 2);
+  assert.equal(recovered.resets, 1);
   const blocked = await scenario({ok:false,code:'DEVICE_ALREADY_SUBMITTED',message:'Already sent'});
   assert.equal(blocked.storage.get('semkwu26.submitted'), '1');
   assert.equal(blocked.resets, 0);

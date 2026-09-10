@@ -131,6 +131,30 @@ function lockSubmission() {
   try { localStorage.setItem(SUBMITTED_KEY, "1"); } catch { /* Server still checks the browser ID. */ }
 }
 
+async function sendAttendance(payload) {
+  // Retrying uses the same ID: the backend rejects an already saved submission.
+  const body = JSON.stringify(payload);
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      return await fetch(CONFIG.appsScriptUrl, {
+        method: "POST",
+        mode: "cors",
+        credentials: "omit",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body,
+      });
+    } catch (error) {
+      if (!(error instanceof TypeError)) throw error;
+      if (attempt === 0) {
+        setStatus("Koneksi terputus. Mencoba menghubungkan kembali...");
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        continue;
+      }
+      throw new Error("Browser tidak menerima respons Google setelah dua percobaan. Periksa rekap melalui panitia terlebih dahulu. Jika belum tercatat, buka situs ini langsung di Chrome/Safari (bukan browser dalam WhatsApp/Instagram) dan coba jaringan lain. Jangan hapus data browser agar batas satu kali tetap berlaku.");
+    }
+  }
+}
+
 function getDeviceId() {
   try {
     let id = localStorage.getItem(DEVICE_KEY);
@@ -341,14 +365,7 @@ form.addEventListener("submit", async (event) => {
       return;
     }
     payload.deviceId = getDeviceId();
-    const response = await fetch(CONFIG.appsScriptUrl, {
-      method: "POST",
-      mode: "cors",
-      headers: {
-        "Content-Type": "text/plain;charset=utf-8",
-      },
-      body: JSON.stringify(payload),
-    });
+    const response = await sendAttendance(payload);
 
     if (!response.ok) {
       const guidance = response.status === 401 || response.status === 403
