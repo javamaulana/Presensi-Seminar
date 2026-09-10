@@ -1,128 +1,139 @@
-﻿# Web Presensi & Sertifikat Seminar
+<div align="center">
+  <img src="assets/logo-panitia-kwu.png" alt="Logo Presensi Seminar Kewirausahaan" width="150">
 
-Web ini dibuat untuk presensi seminar kewirausahaan dengan hosting gratis di Netlify. Data peserta disimpan ke Google Sheet, lalu sertifikat dari Canva yang sudah diunggah ke Google Drive dikirim otomatis ke email memakai Google Apps Script.
+  <h1>Presensi Seminar Kewirausahaan</h1>
+  <p><strong>Isi presensi. Simpan ke rekap. Terima sertifikat.</strong></p>
+  <p>Website presensi mahasiswa dan peserta umum dengan rekap Google Sheets serta pengiriman sertifikat melalui email.</p>
 
-## Yang Gratis
+  <p>
+    <a href="https://s.id/SemKWU26"><strong>Buka Form Presensi</strong></a>
+    &nbsp; &middot; &nbsp;
+    <a href="https://javamaulana.github.io/Presensi-Seminar/">Website GitHub Pages</a>
+    &nbsp; &middot; &nbsp;
+    <a href="apps-script/UPDATE.md">Panduan Panitia</a>
+  </p>
 
-- Hosting web: Netlify
-- Database sederhana: Google Sheet
-- Pengiriman email: Gmail lewat Google Apps Script
-- Sertifikat: dibuat massal di Canva Bulk Create, lalu diunggah ke Google Drive
+  <p><code>HTML / CSS / JavaScript</code> &nbsp; <code>Google Apps Script</code> &nbsp; <code>GitHub Pages</code></p>
+</div>
 
-Untuk sekitar 100 peserta, setup ini masih cocok. Agar tidak masuk spam, hindari mengetes berkali-kali ke banyak email dalam waktu sangat singkat.
+---
 
-## Struktur File
+## Sekilas
 
-- `index.html`: halaman presensi
-- `styles.css`: tampilan web
-- `script.js`: koneksi form ke Google Apps Script
-- `netlify.toml`: konfigurasi hosting Netlify
-- `apps-script/Code.gs`: backend Google Apps Script
+Peserta memilih kategori, mengisi identitas dan email, lalu mengirim presensi. Backend menyimpan data **sebelum** mencari atau mengirim sertifikat, sehingga masalah sertifikat tidak membatalkan pencatatan presensi.
 
-## Cara Membuat Sertifikat di Canva
+| Fitur | Cara kerja |
+| --- | --- |
+| Mahasiswa Kewirausahaan | Pilih kelas dan nama; NIM terisi otomatis. |
+| Peserta umum | Pilih nama terdaftar atau isi nama dan NIM/identitas secara manual. |
+| Rekap lengkap | Setiap pengiriman menjadi baris baru, termasuk ketika email yang digunakan sama. |
+| Sertifikat tersedia | File dari Google Drive dikirim sebagai lampiran email. |
+| Sertifikat belum tersedia | Presensi masuk antrean dan email pemberitahuan 1x24 jam dikirim jika layanan email berhasil. |
+| Pengiriman susulan | Setelah pemicu diaktifkan, antrean diperiksa setiap 5 menit. |
+| Konfirmasi penyimpanan | Form membaca respons backend dan mempertahankan isian jika penyimpanan belum terkonfirmasi. |
 
-1. Siapkan data peserta dalam CSV/Excel/Canva Sheets.
-2. Pastikan ada kolom `Nama` dan `Email`. Lebih bagus lagi jika ada `NIM`.
-3. Di Canva, buka desain sertifikat.
-4. Pakai fitur Bulk Create untuk menghubungkan kolom `Nama` ke teks nama peserta.
-5. Generate semua sertifikat.
-6. Download sertifikat sebagai PDF/PNG/JPG.
-7. Upload semua file sertifikat ke satu folder Google Drive.
+> Daftar peserta umum di `script.js` belum tersinkron otomatis dengan Google Sheet pendaftaran. Panitia dapat memperbarui `GENERAL_PARTICIPANTS`; peserta di luar daftar dapat menggunakan pilihan isi manual.
 
-Nama file sertifikat harus mengandung nama peserta, misalnya:
+## Alur presensi
+
+```mermaid
+flowchart TD
+    A[Peserta mengisi form] --> B[Simpan baris baru di Google Sheets]
+    B --> C{Sertifikat ditemukan?}
+    C -->|Ya| D[Kirim email dengan lampiran]
+    C -->|Belum| E[Menunggu sertifikat]
+    E --> F[Kirim email pemberitahuan]
+    E --> G[Pemicu memeriksa setiap 5 menit]
+    G --> C
+    D --> H[Perbarui status pengiriman]
+```
+
+## Setup untuk panitia
+
+### 1. Siapkan rekap dan folder sertifikat
+
+- Buka Google Sheet rekap, lalu **Ekstensi > Apps Script**.
+- Salin [apps-script/Code.gs](apps-script/Code.gs) ke editor Apps Script.
+- Isi `CERTIFICATE_FOLDER_ID` dengan ID folder sertifikat yang digunakan. Saat memperbarui kode, pertahankan ID folder aktif.
+- Simpan, pilih fungsi **`setupAttendance`**, lalu klik **Run**. Fungsi ini menghubungkan spreadsheet dan menyiapkan tab **Presensi**.
+
+Simpan sertifikat langsung di folder tersebut, bukan subfolder. Nama file harus memuat nama lengkap peserta; tambahkan NIM untuk membantu membedakan nama yang mirip.
 
 ```text
-Sertifikat - Aulia Rahma Putri.pdf
-Sertifikat - Budi Santoso.pdf
+Sertifikat - 2410432045 - Mutiara Aviva.pdf
 ```
 
-Kalau ada kemungkinan nama peserta mirip, masukkan NIM juga di nama file:
+### 2. Aktifkan backend
 
-```text
-Sertifikat - 22123456 - Aulia Rahma Putri.pdf
+- Buat deployment **Web app** dengan **Execute as: Me** dan akses **Anyone**.
+- Salin URL berakhiran `/exec` ke `CONFIG.appsScriptUrl` di [script.js](script.js).
+- Untuk proyek yang sudah aktif, gunakan **Deploy > Manage deployments > pensil > New version > Deploy** agar URL lama tetap digunakan.
+- Buka URL `/exec` untuk memeriksa versi backend:
+
+```json
+{"ok":true,"version":"attendance-append-v3"}
 ```
 
-## Cara Setup Backend Google
+### 3. Aktifkan pengiriman otomatis
 
-1. Buat Google Sheet baru untuk rekap presensi.
-2. Di Google Sheet, buka `Extensions` > `Apps Script`.
-3. Salin isi `apps-script/Code.gs` ke file `Code.gs`.
-4. Buat folder Google Drive khusus yang berisi semua sertifikat hasil Canva.
-5. Isi bagian ini di `Code.gs`:
+Pilih **`setupAutomaticCertificates`** di editor, klik **Run**, lalu setujui izin Google. Pasang dari satu akun panitia. Pastikan menu **Triggers / Pemicu** memuat `sendPendingCertificates` setiap 5 menit.
 
-```js
-CERTIFICATE_FOLDER_ID: "ID_FOLDER_SERTIFIKAT_HASIL_CANVA",
-ORGANIZER_NAME: "Nama panitia kamu",
+Setelah itu, panitia cukup mengunggah file sertifikat. Peserta yang sudah berstatus **Menunggu sertifikat** tidak perlu mengisi ulang. Untuk memproses antrean langsung, jalankan **`sendPendingCertificates`**; fungsi ini benar-benar mengirim email.
+
+### 4. Publikasikan website
+
+Frontend proyek ini menggunakan **GitHub Pages** dari branch `main`, folder `/(root)`. Tidak diperlukan proses build. Pengaturan hosting dijelaskan di [panduan GitHub Pages](GITHUB_PAGES_SETUP.md).
+
+> **Deployment website dan backend terpisah.** Push ke GitHub memperbarui frontend, tetapi kode Google Apps Script perlu disalin dan dideploy melalui editor Google.
+
+## Membaca status rekap
+
+| Status di tab Presensi | Makna dan tindak lanjut |
+| --- | --- |
+| **Menunggu sertifikat** | Presensi tersimpan; sistem menunggu file atau kesempatan pemrosesan berikutnya. Jika berlarut, cek nama file, akses folder, kuota, dan log eksekusi. |
+| **Terkirim** | Backend selesai mengirim email sertifikat saat presensi masuk. |
+| **Terkirim otomatis** | Pemroses antrean selesai mengirim email sertifikat. |
+| **Perlu cek pengiriman** | Pengiriman dimulai tetapi belum terkonfirmasi selesai di rekap. Periksa log dan penerimaan email sebelum mencoba ulang. |
+
+**Setiap pengisian ulang tetap menjadi baris baru.** Ini menjaga riwayat, tetapi beberapa pengisian ulang dapat menghasilkan beberapa email. Pembaruan kode tidak memulihkan baris yang sudah tertimpa oleh versi lama.
+
+Panduan penanganan error, aktivasi ulang, dan pemeriksaan deployment tersedia di [apps-script/UPDATE.md](apps-script/UPDATE.md).
+
+## Struktur proyek
+
+| File / folder | Fungsi |
+| --- | --- |
+| [index.html](index.html) | Struktur halaman dan form presensi. |
+| [styles.css](styles.css) | Tampilan dan tata letak website. |
+| [script.js](script.js) | Daftar peserta, validasi, dan komunikasi dengan backend. |
+| [assets/](assets/) | Aset visual website. |
+| [apps-script/Code.gs](apps-script/Code.gs) | Pencatatan presensi, pencarian sertifikat, dan pengiriman email. |
+| [apps-script/UPDATE.md](apps-script/UPDATE.md) | Panduan operasional dan pembaruan backend. |
+| [tests/](tests/) | Pengujian form, rekap, respons server, dan antrean sertifikat. |
+
+## Pengujian lokal
+
+Jalankan dari direktori proyek menggunakan Node.js:
+
+```bash
+node tests/presensi.cjs
+node tests/automatic-certificates.cjs
+node tests/submit-response.cjs
 ```
 
-ID Drive ada di URL file/folder. Contoh URL folder:
+Pengujian memakai simulasi layanan Google dan **tidak mengirim email sungguhan**. Setelah deployment, lakukan uji dengan email panitia dan periksa tab Presensi, kotak masuk, serta spam.
 
-```text
-https://drive.google.com/drive/folders/INI_ADALAH_ID_FOLDER
-```
+<details>
+<summary><strong>Catatan operasional</strong></summary>
 
-6. Klik `Deploy` > `New deployment`.
-7. Pilih type `Web app`.
-8. `Execute as`: `Me`.
-9. `Who has access`: `Anyone`.
-10. Klik `Deploy`, izinkan akses, lalu salin Web App URL.
-11. Tempel URL itu ke `script.js`:
+- Pengecekan 5 menit bukan jaminan waktu pengiriman tepat; akses Google, kuota email, dan ketersediaan file memengaruhi hasilnya.
+- Panitia tetap perlu menyiapkan sertifikat tepat waktu untuk memenuhi pemberitahuan 1x24 jam.
+- Status terkirim berarti pemanggilan layanan email selesai, bukan bukti pesan sudah dibaca atau masuk kotak utama penerima.
+- Daftar peserta dalam frontend dapat dilihat publik. Jangan menyimpan password, token rahasia, atau isi rekap presensi di repository publik.
+- Jika form belum mendapat konfirmasi, cek rekap sebelum mengirim ulang.
 
-```js
-appsScriptUrl: "URL_WEB_APP_DARI_APPS_SCRIPT",
-```
+</details>
 
-## Cara Hosting Gratis di Netlify
+---
 
-Opsi paling rapi adalah tetap menyimpan file di GitHub, lalu Netlify otomatis mengambil dari GitHub.
-
-1. Buat repository GitHub baru, misalnya `sertifikat-seminar`.
-2. Upload semua file di folder ini ke repository.
-3. Buka Netlify: `https://app.netlify.com/`.
-4. Pilih `Add new site` > `Import an existing project`.
-5. Pilih GitHub, lalu pilih repository `sertifikat-seminar`.
-6. Pada pengaturan deploy:
-   - Build command: kosongkan
-   - Publish directory: `.`
-7. Klik `Deploy`.
-8. Setelah selesai, buka `Site configuration` > `Site details` > `Change site name`.
-9. Pilih nama domain gratis, misalnya:
-
-```text
-seminar-kewirausahaan-2026.netlify.app
-```
-
-Netlify gratis memakai format `namasite.netlify.app`. Kalau nama sudah dipakai orang lain, coba variasi seperti `presensi-seminar-kwu`, `sertifikat-kewirausahaan`, atau tambahkan nama kampus/angkatan.
-
-## Alternatif: Upload Langsung ke Netlify
-
-Kalau belum mau memakai GitHub:
-
-1. Buka Netlify.
-2. Pilih `Add new site` > `Deploy manually`.
-3. Drag seluruh folder proyek ini ke Netlify.
-4. Web langsung online.
-
-Cara ini cepat, tapi setiap ada perubahan kamu perlu upload ulang manual. Untuk acara sungguhan, GitHub + Netlify lebih nyaman.
-
-## Menyesuaikan Tampilan
-
-Ubah detail acara di `index.html`, terutama bagian:
-
-- Tanggal
-- Lokasi
-- Nama seminar
-- Kalimat pembuka
-
-Ubah nama acara yang dikirim ke backend di `script.js`:
-
-```js
-eventName: "Seminar Kewirausahaan",
-```
-
-## Catatan Penting
-
-Form ini sengaja memakai Google Apps Script supaya semua tetap gratis dan aman untuk hosting statis seperti Netlify. Jangan menaruh password Gmail atau token rahasia apa pun di file web, karena file frontend yang online bisa dilihat publik.
-# Presensi-Seminar
-
-
+<p align="center"><strong>Seminar Kewirausahaan</strong><br>Presensi dan sertifikat dalam satu alur.</p>
