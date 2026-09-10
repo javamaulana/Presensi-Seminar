@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
-async function scenario(result, networkError = false) {
+async function scenario(result, networkError = false, httpStatus = 200) {
   const elements = {};
   let submit, resets = 0;
   const get = id => elements[id] ||= { value: '', style: {}, append() {}, replaceChildren() {},
@@ -12,7 +12,7 @@ async function scenario(result, networkError = false) {
     fetch: async (_, options) => {
       assert.equal(options.mode, 'cors');
       if (networkError) throw Error('Network failed');
-      return { ok: true, json: async () => result };
+      return { ok: httpStatus === 200, status: httpStatus, json: async () => { if (result === 'html') throw new SyntaxError('HTML'); return result; } };
     },
   });
   vm.runInContext(fs.readFileSync('script.js', 'utf8'), context);
@@ -31,5 +31,15 @@ async function scenario(result, networkError = false) {
     assert.ok(outcome.status.className.includes('is-error'));
   }
   assert.equal((await scenario(null, true)).resets, 0);
+  for (const code of [401, 403, 404, 429, 500, 503]) {
+    const outcome = await scenario(null, false, code);
+    assert.equal(outcome.resets, 0);
+    assert.ok(outcome.status.textContent.includes(`HTTP ${code}`));
+  }
+  for (const body of [null, 'html']) {
+    const outcome = await scenario(body);
+    assert.equal(outcome.resets, 0);
+    assert.ok(outcome.status.className.includes('is-error'));
+  }
   console.log('PASS: only confirmed backend outcomes reset form; server/network/version errors retain input.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

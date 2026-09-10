@@ -320,8 +320,25 @@ form.addEventListener("submit", async (event) => {
       body: JSON.stringify(payload),
     });
 
-    if (!response.ok) throw new Error("Server presensi tidak dapat diakses.");
-    const result = await response.json();
+    if (!response.ok) {
+      const guidance = response.status === 401 || response.status === 403
+        ? "Akses Web app ditolak. Panitia perlu mengatur akses deployment menjadi Anyone."
+        : response.status === 404
+          ? "URL deployment tidak ditemukan. Panitia perlu memperbarui URL Web app."
+          : response.status === 429
+            ? "Server sedang membatasi permintaan. Periksa rekap sebelum mencoba lagi nanti."
+            : "Server Google gagal merespons. Periksa rekap sebelum mencoba lagi dan sampaikan kode ini kepada panitia.";
+      throw new Error(`HTTP ${response.status}. ${guidance}`);
+    }
+    let result;
+    try {
+      result = await response.json();
+    } catch {
+      throw new Error("Respons bukan data presensi. Panitia perlu memeriksa URL dan akses deployment Web app.");
+    }
+    if (!result || typeof result !== "object") {
+      throw new Error("Respons backend tidak valid. Hubungi panitia.");
+    }
     if (!result.ok) throw new Error(result.message || "Presensi gagal disimpan.");
     const messages = {
       sent: "Presensi tersimpan. Sertifikat telah dikirim ke email Anda.",
