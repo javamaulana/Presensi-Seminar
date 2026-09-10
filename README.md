@@ -26,7 +26,7 @@ Peserta memilih kategori, mengisi identitas dan email, lalu mengirim presensi. B
 | --- | --- |
 | Mahasiswa Kewirausahaan | Pilih kelas dan nama; NIM terisi otomatis. |
 | Peserta umum | Pilih nama terdaftar atau isi nama dan NIM/identitas secara manual. |
-| Rekap lengkap | Setiap pengiriman yang diterima menjadi baris baru; browser yang sama hanya boleh mengirim sekali. |
+| Rekap lengkap | Setiap pengiriman menjadi baris baru, termasuk ketika email yang digunakan sama. |
 | Sertifikat tersedia | File dari Google Drive dikirim sebagai lampiran email. |
 | Sertifikat belum tersedia | Presensi masuk antrean dan email pemberitahuan 1x24 jam dikirim jika layanan email berhasil. |
 | Pengiriman susulan | Setelah pemicu diaktifkan, antrean diperiksa setiap 5 menit. |
@@ -71,7 +71,7 @@ Sertifikat - 2410432045 - Mutiara Aviva.pdf
 - Buka URL `/exec` untuk memeriksa versi backend:
 
 ```json
-{"ok":true,"version":"one-browser-v5"}
+{"ok":true,"version":"multi-certificates-v4"}
 ```
 
 ### 3. Aktifkan pengiriman otomatis
@@ -95,7 +95,7 @@ Frontend proyek ini menggunakan **GitHub Pages** dari branch `main`, folder `/(r
 | **Terkirim otomatis** | Pemroses antrean selesai mengirim email sertifikat. |
 | **Perlu cek pengiriman** | Pengiriman dimulai tetapi belum terkonfirmasi selesai di rekap. Periksa log dan penerimaan email sebelum mencoba ulang. |
 
-**Satu kali presensi per browser untuk acara ini.** ID browser disimpan di kolom J; pengiriman kedua dengan ID yang sama ditolak. Email yang sama dari browser berbeda tidak menimpa rekap. Mengganti browser atau menghapus penyimpanan dapat melewati batas ini, sehingga ini bukan verifikasi identitas atau jaminan satu HP fisik. Data lama tidak memiliki ID browser dan tidak dapat dikunci secara retroaktif.
+**Setiap pengisian ulang tetap menjadi baris baru.** Ini menjaga riwayat, tetapi beberapa pengisian ulang dapat menghasilkan beberapa email. Pembaruan kode tidak memulihkan baris yang sudah tertimpa oleh versi lama.
 
 Panduan penanganan error, aktivasi ulang, dan pemeriksaan deployment tersedia di [apps-script/UPDATE.md](apps-script/UPDATE.md).
 

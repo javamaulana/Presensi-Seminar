@@ -120,53 +120,6 @@ const certInfoBox = document.querySelector("#certInfoBox");
 const certInfoText = document.querySelector("#certInfoText");
 const statusEl = document.querySelector("#formStatus");
 const submitButton = form.querySelector("button[type='submit']");
-const DEVICE_KEY = "semkwu26.browser-id";
-const SUBMITTED_KEY = "semkwu26.submitted";
-let submissionLocked = false;
-
-function lockSubmission() {
-  submissionLocked = true;
-  submitButton.disabled = true;
-  submitButton.textContent = "Presensi sudah diisi";
-  try { localStorage.setItem(SUBMITTED_KEY, "1"); } catch { /* Server still checks the browser ID. */ }
-}
-
-async function sendAttendance(payload) {
-  // Retrying uses the same ID: the backend rejects an already saved submission.
-  const body = JSON.stringify(payload);
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      return await fetch(CONFIG.appsScriptUrl, {
-        method: "POST",
-        mode: "cors",
-        credentials: "omit",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body,
-      });
-    } catch (error) {
-      if (!(error instanceof TypeError)) throw error;
-      if (attempt === 0) {
-        setStatus("Koneksi terputus. Mencoba menghubungkan kembali...");
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        continue;
-      }
-      throw new Error("Browser tidak menerima respons Google setelah dua percobaan. Periksa rekap melalui panitia terlebih dahulu. Jika belum tercatat, buka situs ini langsung di Chrome/Safari (bukan browser dalam WhatsApp/Instagram) dan coba jaringan lain. Jangan hapus data browser agar batas satu kali tetap berlaku.");
-    }
-  }
-}
-
-function getDeviceId() {
-  try {
-    let id = localStorage.getItem(DEVICE_KEY);
-    if (!/^[a-f0-9]{32}$/.test(id || "")) {
-      id = Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0")).join("");
-      localStorage.setItem(DEVICE_KEY, id);
-    }
-    return id;
-  } catch {
-    throw new Error("Izinkan penyimpanan browser agar batas satu kali presensi dapat diterapkan, lalu coba lagi.");
-  }
-}
 
 function setStatus(message, type = "") {
   statusEl.textContent = message;
@@ -345,7 +298,6 @@ nameSelect.addEventListener("change", () => {
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (submissionLocked || submitButton.disabled) return;
 
   const payload = getFormPayload();
   const validationMessage = validatePayload(payload);
@@ -359,13 +311,14 @@ form.addEventListener("submit", async (event) => {
   setStatus("Mengirim presensi...");
 
   try {
-    if (localStorage.getItem(SUBMITTED_KEY) === "1") {
-      lockSubmission();
-      setStatus("Perangkat/browser ini sudah mengirim presensi. Hubungi panitia untuk koreksi.", "is-error");
-      return;
-    }
-    payload.deviceId = getDeviceId();
-    const response = await sendAttendance(payload);
+    const response = await fetch(CONFIG.appsScriptUrl, {
+      method: "POST",
+      mode: "cors",
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8",
+      },
+      body: JSON.stringify(payload),
+    });
 
     if (!response.ok) {
       const guidance = response.status === 401 || response.status === 403
@@ -386,10 +339,7 @@ form.addEventListener("submit", async (event) => {
     if (!result || typeof result !== "object") {
       throw new Error("Respons backend tidak valid. Hubungi panitia.");
     }
-    if (!result.ok) {
-      if (result.code === "DEVICE_ALREADY_SUBMITTED") lockSubmission();
-      throw new Error(result.message || "Presensi gagal disimpan.");
-    }
+    if (!result.ok) throw new Error(result.message || "Presensi gagal disimpan.");
     const messages = {
       sent: "Presensi tersimpan. Sertifikat telah dikirim ke email Anda.",
       pending: "Presensi tersimpan. Email pemberitahuan telah dikirim; sertifikat menyusul dalam 1x24 jam.",
@@ -398,7 +348,6 @@ form.addEventListener("submit", async (event) => {
     };
     const successMessage = messages[result.status];
     if (!successMessage) throw new Error("Backend belum sesuai. Panitia perlu memperbarui deployment Apps Script.");
-    lockSubmission();
 
     form.reset();
     participantTypeSelect.value = "";
@@ -407,7 +356,7 @@ form.addEventListener("submit", async (event) => {
   } catch (error) {
     setStatus("Belum ada konfirmasi penyimpanan. " + (error instanceof TypeError ? "Koneksi atau akses Apps Script bermasalah. Hubungi panitia untuk memeriksa rekap sebelum mencoba lagi." : error.message), "is-error");
   } finally {
-    submitButton.disabled = submissionLocked;
+    submitButton.disabled = false;
   }
 });
 
@@ -418,9 +367,3 @@ GENERAL_PARTICIPANTS.forEach(participant => {
 umumNameSelect.append(createOption("manual", "Nama tidak ada di daftar — isi manual"));
 populateNames("");
 handleParticipantTypeChange();
-try {
-  if (localStorage.getItem(SUBMITTED_KEY) === "1") {
-    lockSubmission();
-    setStatus("Perangkat/browser ini sudah mengirim presensi. Pengisian hanya diperbolehkan satu kali. Hubungi panitia untuk koreksi.");
-  }
-} catch { /* Explain storage requirements when the participant submits. */ }

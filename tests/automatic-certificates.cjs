@@ -6,7 +6,7 @@ const row = name => [new Date(), name, 'test@example.com', '123', 'Umum', 'Semin
 const rows = [row('Peserta Ada'), row('Peserta Belum')];
 const sheet = { getLastRow: () => rows.length + 1, getRange: (r, c) => ({
   getValues: () => rows.map(row => [...row]),
-  setValues: values => r === 1 ? undefined : values[0].forEach((v, i) => rows[r - 2][c - 1 + i] = v),
+  setValues: values => values[0].forEach((v, i) => rows[r - 2][c - 1 + i] = v),
 }) };
 const spreadsheet = { getId: () => 'sheet-id', getSheetByName: () => sheet };
 const files = ['Panitia', 'Peserta', 'Pengisi Acara'].map(role => ({ getName: () => `Sertifikat - Peserta Ada (${role}).pdf`, getUrl: () => 'url/' + role, getBlob: () => role }));

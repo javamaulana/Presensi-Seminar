@@ -28,9 +28,8 @@ let files = [], emails = [], rows = [], mailFails = false, driveFails = false, s
 const sheet = {
   getLastRow: () => rows.length + 1,
   getRange: (r, c) => ({
-    getValues: () => rows.map(row => [row[c - 1]]),
+    getValues: () => rows.map(row => [row[2]]),
     setValues: values => {
-      if (r === 1) return;
       if (sheetFails) throw Error('Sheet unavailable');
       rows[r - 2] ||= [];
       values[0].forEach((v, i) => rows[r - 2][c - 1 + i] = v);
@@ -47,9 +46,7 @@ const backend = vm.createContext({
   ContentService: { MimeType: { JSON: 'json' }, createTextOutput: text => ({ setMimeType: () => JSON.parse(text) }) },
 });
 vm.runInContext(fs.readFileSync('apps-script/Code.gs', 'utf8'), backend);
-let deviceCounter = 0;
-const deviceId = () => (++deviceCounter).toString(16).padStart(32, '0');
-const submit = institution => backend.doPost({ postData: { contents: JSON.stringify({ deviceId: deviceId(), fullName: 'Mutiara Aviva', studentId: '2410432045', email: 'test@example.com', institution }) } });
+const submit = institution => backend.doPost({ postData: { contents: JSON.stringify({ fullName: 'Mutiara Aviva', studentId: '2410432045', email: 'test@example.com', institution }) } });
 assert.equal(submit('Umum').status, 'pending');
 assert.equal(rows[0][8], 'Menunggu sertifikat');
 assert.equal(emails.length, 1);
@@ -73,7 +70,7 @@ assert.equal(submit('Umum').status, 'review');
 assert.equal(rows[5][8], 'Perlu cek pengiriman');
 const previousRows = JSON.stringify(rows);
 for (const [fullName, studentId] of [['Peserta Kedua', '222'], ['Peserta Ketiga', '333']]) {
-  const result = backend.doPost({ postData: { contents: JSON.stringify({ deviceId: deviceId(), fullName, studentId, email: 'test@example.com', institution: 'Umum' }) } });
+  const result = backend.doPost({ postData: { contents: JSON.stringify({ fullName, studentId, email: 'test@example.com', institution: 'Umum' }) } });
   assert.equal(result.ok, true);
 }
 assert.equal(rows.length, 8);
@@ -95,15 +92,8 @@ assert.equal(backend.findCertificateFiles_({ fullName: 'Muhammad Arifin Ilham', 
 assert.equal(backend.findCertificateFiles_({ fullName: 'Muhammad Arifin Ilham', institution: 'Kelas B' }).length, 1);
 files = ['Sertifikat - 123 - Java Maulana (Panitia).pdf', 'Sertifikat - 456 - Java Maulana (Peserta).pdf', 'Sertifikat - Java Maulana (Pengisi Acara).pdf'].map(certificate);
 assert.equal(backend.findCertificateFiles_({ fullName: 'Java Maulana', studentId: '123' }).length, 2);
-const priorCount = rows.length;
-const priorEmails = emails.length;
-const duplicate = backend.doPost({ postData: { contents: JSON.stringify({ fullName: 'Nama Lain', email: 'other@example.com', deviceId: rows[0][9], institution: 'Umum' }) } });
-assert.equal(duplicate.code, 'DEVICE_ALREADY_SUBMITTED');
-assert.equal(rows.length, priorCount);
-assert.equal(emails.length, priorEmails);
-assert.equal(backend.doPost({ postData: { contents: JSON.stringify({fullName:'Nama Lain',email:'other@example.com'}) } }).ok, false);
 sheetFails = true;
 assert.equal(submit('Umum').ok, false);
 assert.equal(backend.doPost({}).ok, false);
-assert.equal(backend.doGet().version, 'one-browser-v5');
+assert.equal(backend.doGet().version, 'multi-certificates-v4');
 console.log('PASS: form validation; attendance saved before email; missing files, Drive failure, mail failure, Sheet failure, and invalid requests. No real emails sent.');
