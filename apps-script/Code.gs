@@ -18,6 +18,12 @@ function doPost(e) {
     const existingRow = findExistingEmailRow_(sheet, payload.email);
     const certificateFile = findCertificateFile_(payload);
 
+    if (certificateFile) {
+      sendCertificateEmail_(payload, certificateFile);
+    } else {
+      sendPendingCertificateEmail_(payload);
+    }
+
     if (existingRow) {
       sheet.getRange(existingRow, 1, 1, 9).setValues([[
         new Date(),
@@ -26,9 +32,9 @@ function doPost(e) {
         payload.studentId,
         payload.institution,
         payload.eventName || CONFIG.EVENT_NAME,
-        certificateFile.getName(),
-        certificateFile.getUrl(),
-        "Dikirim ulang",
+        certificateFile ? certificateFile.getName() : "",
+        certificateFile ? certificateFile.getUrl() : "",
+        certificateFile ? "Dikirim ulang" : "Menunggu sertifikat",
       ]]);
     } else {
       sheet.appendRow([
@@ -38,14 +44,17 @@ function doPost(e) {
         payload.studentId,
         payload.institution,
         payload.eventName || CONFIG.EVENT_NAME,
-        certificateFile.getName(),
-        certificateFile.getUrl(),
-        "Terkirim",
+        certificateFile ? certificateFile.getName() : "",
+        certificateFile ? certificateFile.getUrl() : "",
+        certificateFile ? "Terkirim" : "Menunggu sertifikat",
       ]);
     }
 
-    sendCertificateEmail_(payload, certificateFile);
-    return json_({ ok: true, certificateUrl: certificateFile.getUrl() });
+    return json_({
+      ok: true,
+      status: certificateFile ? "sent" : "pending",
+      certificateUrl: certificateFile ? certificateFile.getUrl() : "",
+    });
   } catch (error) {
     return json_({ ok: false, message: error.message });
   } finally {
@@ -129,6 +138,7 @@ function findCertificateFile_(payload) {
   }
 
   if (matches.length === 0) {
+    if (payload.institution === "Umum") return null;
     throw new Error(`Sertifikat atas nama ${payload.fullName} belum ditemukan di folder Drive.`);
   }
 
@@ -173,6 +183,23 @@ function sendCertificateEmail_(payload, certificateFile) {
     subject: CONFIG.EMAIL_SUBJECT,
     body,
     attachments: [certificateFile.getBlob()],
+    name: CONFIG.ORGANIZER_NAME,
+  });
+}
+
+function sendPendingCertificateEmail_(payload) {
+  MailApp.sendEmail({
+    to: payload.email,
+    subject: "Informasi Sertifikat Seminar Kewirausahaan",
+    body: [
+      `Halo ${payload.fullName},`,
+      "",
+      `Terima kasih sudah mengikuti ${payload.eventName || CONFIG.EVENT_NAME}.`,
+      "Presensi Anda telah diterima. Sertifikat Anda sedang disiapkan dan akan dikirim ke email ini dalam waktu 1×24 jam.",
+      "",
+      "Salam,",
+      CONFIG.ORGANIZER_NAME,
+    ].join("\n"),
     name: CONFIG.ORGANIZER_NAME,
   });
 }

@@ -96,11 +96,20 @@ const PARTICIPANTS = [
   { className: "KBI", name: "Desy Fadilla", nim: "2410431038" },
 ];
 
+// Peserta pendaftaran yang menjawab "Tidak" pada pertanyaan mata kuliah kewirausahaan.
+const GENERAL_PARTICIPANTS = [
+  { name: "Mutiara Aviva", nim: "2410432045" },
+  { name: "Muhammad Arifin Ilham", nim: "2610432004" },
+  { name: "Siti Maha Rani Binti H.Yusmardi", nim: "2420432003" },
+  { name: "Hilda Salimna Ramadhani", nim: "2510432042" },
+];
+
 // DOM Elements
 const form = document.querySelector("#attendanceForm");
 const participantTypeSelect = document.querySelector("#participantType");
 const mahasiswaSection = document.querySelector("#mahasiswaSection");
 const umumSection = document.querySelector("#umumSection");
+const umumNameSelect = document.querySelector("#umumName");
 const classSelect = document.querySelector("#className");
 const nameSelect = document.querySelector("#fullName");
 const studentIdInput = document.querySelector("#studentId");
@@ -149,6 +158,23 @@ function getSelectedParticipant() {
   });
 }
 
+function handleGeneralParticipantChange() {
+  const isGeneral = participantTypeSelect.value === "umum";
+  const isManual = isGeneral && umumNameSelect.value === "manual";
+  const participant = GENERAL_PARTICIPANTS.find(p => p.nim === umumNameSelect.value);
+  umumNameSelect.disabled = !isGeneral;
+  umumNameSelect.required = isGeneral;
+  nameManualInput.disabled = !isGeneral || (!isManual && !participant);
+  nimManualInput.disabled = nameManualInput.disabled;
+  nameManualInput.readOnly = !isManual;
+  nimManualInput.readOnly = !isManual;
+  nameManualInput.required = isManual;
+  nimManualInput.required = isManual;
+  nameManualInput.value = participant?.name || "";
+  nimManualInput.value = participant?.nim || "";
+  setStatus("");
+}
+
 function handleParticipantTypeChange() {
   const selectedType = participantTypeSelect.value;
   
@@ -168,7 +194,7 @@ function handleParticipantTypeChange() {
   // Show info box only for umum participants
   if (selectedType === "umum") {
     certInfoBox.style.display = "block";
-    certInfoText.innerHTML = 'ℹ️ Sertifikat akan dikirim paling lama <strong>24 jam</strong> setelah verifikasi data Anda.';
+    certInfoText.textContent = "Jika sertifikat tersedia, kami akan langsung mengirimkannya ke email Anda. Jika belum tersedia, kami akan mengirim email pemberitahuan bahwa sertifikat akan dikirim dalam waktu 1×24 jam.";
   } else {
     certInfoBox.style.display = "none";
   }
@@ -187,12 +213,13 @@ function handleParticipantTypeChange() {
   }
   
   emailInput.value = "";
+  umumNameSelect.value = "";
+  handleGeneralParticipantChange();
   setStatus("");
 }
 
 function getFormPayload() {
   const selectedType = participantTypeSelect.value;
-  const formData = new FormData(form);
   
   let fullName, nim;
   
@@ -234,6 +261,9 @@ function validatePayload(payload) {
       return "Pilih nama peserta.";
     }
   } else if (selectedType === "umum") {
+    if (!umumNameSelect.value) {
+      return "Pilih nama peserta atau pilihan isi manual.";
+    }
     if (!nameManualInput.value.trim()) {
       return "Masukkan nama Anda.";
     }
@@ -250,6 +280,7 @@ function validatePayload(payload) {
 }
 
 // Event Listeners
+umumNameSelect.addEventListener("change", handleGeneralParticipantChange);
 participantTypeSelect.addEventListener("change", () => {
   handleParticipantTypeChange();
 });
@@ -291,8 +322,8 @@ form.addEventListener("submit", async (event) => {
 
     const selectedType = participantTypeSelect.value;
     const successMessage = selectedType === "umum" 
-      ? "Presensi terkirim. Sertifikat akan dikirim paling lama 24 jam ke email Anda."
-      : "Presensi berhasil dicatat. Sertifikat akan dikirim ke email Anda.";
+      ? "Permintaan presensi telah dikirim. Periksa email untuk sertifikat atau pemberitahuan menunggu 1×24 jam. Jika belum ada email, hubungi panitia."
+      : "Permintaan presensi telah dikirim. Periksa email untuk sertifikat Anda.";
     
     form.reset();
     participantTypeSelect.value = "";
@@ -306,5 +337,9 @@ form.addEventListener("submit", async (event) => {
 });
 
 populateClasses();
+GENERAL_PARTICIPANTS.forEach(participant => {
+  umumNameSelect.append(createOption(participant.nim, participant.name));
+});
+umumNameSelect.append(createOption("manual", "Nama tidak ada di daftar — isi manual"));
 populateNames("");
 handleParticipantTypeChange();
