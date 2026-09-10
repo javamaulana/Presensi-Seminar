@@ -311,26 +311,33 @@ form.addEventListener("submit", async (event) => {
   setStatus("Mengirim presensi...");
 
   try {
-    await fetch(CONFIG.appsScriptUrl, {
+    const response = await fetch(CONFIG.appsScriptUrl, {
       method: "POST",
-      mode: "no-cors",
+      mode: "cors",
       headers: {
         "Content-Type": "text/plain;charset=utf-8",
       },
       body: JSON.stringify(payload),
     });
 
-    const selectedType = participantTypeSelect.value;
-    const successMessage = selectedType === "umum" 
-      ? "Permintaan presensi telah dikirim. Periksa email untuk sertifikat atau pemberitahuan menunggu 1×24 jam. Jika belum ada email, hubungi panitia."
-      : "Permintaan presensi telah dikirim. Periksa email untuk sertifikat Anda.";
-    
+    if (!response.ok) throw new Error("Server presensi tidak dapat diakses.");
+    const result = await response.json();
+    if (!result.ok) throw new Error(result.message || "Presensi gagal disimpan.");
+    const messages = {
+      sent: "Presensi tersimpan. Sertifikat telah dikirim ke email Anda.",
+      pending: "Presensi tersimpan. Email pemberitahuan telah dikirim; sertifikat menyusul dalam 1x24 jam.",
+      pending_error: "Presensi tersimpan, tetapi sertifikat atau email belum dapat diproses. Hubungi panitia.",
+      review: "Presensi tersimpan. Pengiriman sertifikat perlu diperiksa panitia. Tidak perlu mengisi ulang.",
+    };
+    const successMessage = messages[result.status];
+    if (!successMessage) throw new Error("Backend belum sesuai. Panitia perlu memperbarui deployment Apps Script.");
+
     form.reset();
     participantTypeSelect.value = "";
     handleParticipantTypeChange();
     setStatus(successMessage, "is-success");
   } catch (error) {
-    setStatus("Gagal mengirim presensi. Coba lagi atau hubungi panitia.", "is-error");
+    setStatus("Belum ada konfirmasi penyimpanan. " + (error instanceof TypeError ? "Koneksi atau akses Apps Script bermasalah. Hubungi panitia untuk memeriksa rekap sebelum mencoba lagi." : error.message), "is-error");
   } finally {
     submitButton.disabled = false;
   }

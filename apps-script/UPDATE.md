@@ -32,4 +32,15 @@ Status **Perlu cek pengiriman** berarti pengiriman telah dimulai tetapi belum di
 
 Untuk mematikan otomatisasi, hapus pemicu `sendPendingCertificates` di menu Triggers.
 
-Form memakai request `no-cors`, sehingga halaman tidak dapat membaca hasil backend. Pastikan penerimaan email dan rekap diuji setelah deployment dengan alamat email milik panitia.
+## Jika presensi tidak tercatat
+
+Versi terbaru menyimpan presensi sebelum mengakses Drive atau mengirim email. Kegagalan sertifikat tidak membatalkan pencatatan. Form membaca respons backend; pesan sukses hanya muncul jika backend mengonfirmasi penyimpanan.
+
+1. Salin kode terbaru ke proyek yang melayani URL `CONFIG.appsScriptUrl` di `script.js`, pertahankan ID folder sertifikat yang benar.
+2. Jalankan **setupAttendance** dari editor. Fungsi ini menyimpan ID spreadsheet tujuan tanpa bergantung pada akses Drive/email, dan mencetak URL rekap di log. Data masuk ke tab **Presensi**.
+3. Perbarui deployment lama: **Deploy > Manage deployments > pensil > New version > Deploy**. Pastikan **Execute as: Me** dan akses **Anyone**. Menyimpan kode saja tidak memperbarui Web app.
+4. Buka URL `/exec` deployment di browser. Harus muncul JSON yang memuat `"version":"attendance-first-v2"`. Jika muncul `doGet tidak ditemukan` atau halaman login, versi/akses deployment belum sesuai.
+5. Uji form menggunakan email panitia dan periksa tab **Presensi**. Jika gagal, buka **Executions**, pilih eksekusi **doPost** dari Web app pada waktu pengujian, lalu baca log error. Menjalankan doPost dengan tombol Run tidak menyertakan data form.
+6. Jalankan **setupAutomaticCertificates** setelah ID folder benar untuk mengaktifkan pengiriman berkala.
+
+Jika browser tidak menerima respons (misalnya karena akses deployment atau jaringan), form mempertahankan isian dan tidak mengklaim data tersimpan. Cek rekap sebelum mengulang pengiriman.

@@ -24,31 +24,51 @@ assert.equal(get('#umumName').disabled, true);
 assert.equal(get('#nameManual').disabled, true);
 assert.equal(run('validatePayload(getFormPayload())'), '');
 
-let files = [], emails = [], rows = [], existing = false, mailFails = false;
-const sheet = { getLastRow: () => existing ? 2 : 1, appendRow: row => rows.push(row), getRange: () => ({ getValues: () => [['test@example.com']], setValues: values => rows.push(...values) }) };
+let files = [], emails = [], rows = [], mailFails = false, driveFails = false, sheetFails = false;
+const sheet = {
+  getLastRow: () => rows.length + 1,
+  getRange: (r, c) => ({
+    getValues: () => rows.map(row => [row[2]]),
+    setValues: values => {
+      if (sheetFails) throw Error('Sheet unavailable');
+      rows[r - 2] ||= [];
+      values[0].forEach((v, i) => rows[r - 2][c - 1 + i] = v);
+    },
+  }),
+};
 const backend = vm.createContext({
+  console: { error() {} },
   PropertiesService: { getScriptProperties: () => ({ getProperty: () => null }) },
   LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
-  SpreadsheetApp: { getActiveSpreadsheet: () => ({ getSheetByName: () => sheet }) },
-  DriveApp: { getFolderById: () => { const remaining = [...files]; return { getFiles: () => ({ hasNext: () => remaining.length > 0, next: () => remaining.shift() }) }; } },
-  MailApp: { sendEmail: email => { if (mailFails) throw Error('Mail failed'); emails.push(email); } },
+  SpreadsheetApp: { flush() {}, getActiveSpreadsheet: () => ({ getSheetByName: () => sheet }) },
+  DriveApp: { getFolderById: () => { if (driveFails) throw Error('Drive unavailable'); const remaining = [...files]; return { getFiles: () => ({ hasNext: () => remaining.length > 0, next: () => remaining.shift() }) }; } },
+  MailApp: { sendEmail: email => { assert.ok(rows.length > 0, 'Attendance must exist before email'); if (mailFails) throw Error('Mail failed'); emails.push(email); } },
   ContentService: { MimeType: { JSON: 'json' }, createTextOutput: text => ({ setMimeType: () => JSON.parse(text) }) },
 });
 vm.runInContext(fs.readFileSync('apps-script/Code.gs', 'utf8'), backend);
 const submit = institution => backend.doPost({ postData: { contents: JSON.stringify({ fullName: 'Mutiara Aviva', studentId: '2410432045', email: 'test@example.com', institution }) } });
 assert.equal(submit('Umum').status, 'pending');
-assert.equal(emails.length, 1);
-assert.equal(emails[0].attachments, undefined);
-assert.ok(emails[0].body.includes('24 jam'));
 assert.equal(rows[0][8], 'Menunggu sertifikat');
+assert.equal(emails.length, 1);
 files = [{ getName: () => 'Mutiara Aviva.pdf', getUrl: () => 'https://example.com/certificate', getBlob: () => 'PDF' }];
-existing = true;
 assert.equal(submit('Umum').status, 'sent');
 assert.equal(emails[1].attachments[0], 'PDF');
-assert.equal(rows[1][8], 'Dikirim ulang');
+assert.equal(rows[0][8], 'Dikirim ulang');
+assert.equal(rows.length, 1);
 files = [];
-assert.equal(submit('Kelas A').ok, false);
+assert.equal(submit('Kelas A').status, 'pending');
 mailFails = true;
+assert.equal(submit('Umum').status, 'pending_error');
+assert.equal(rows[0][8], 'Menunggu sertifikat');
+driveFails = true;
+assert.equal(submit('Kelas A').status, 'pending_error');
+assert.equal(rows[0][4], 'Kelas A');
+driveFails = false;
+files = [{ getName: () => 'Mutiara Aviva.pdf', getUrl: () => 'url', getBlob: () => 'PDF' }];
+assert.equal(submit('Umum').status, 'review');
+assert.equal(rows[0][8], 'Perlu cek pengiriman');
+sheetFails = true;
 assert.equal(submit('Umum').ok, false);
-assert.equal(rows.length, 2);
-console.log('PASS: dropdown, manual entry, category switching, certificate email, pending email, repeat attendance, and mail failure. No real emails sent.');
+assert.equal(backend.doPost({}).ok, false);
+assert.equal(backend.doGet().version, 'attendance-first-v2');
+console.log('PASS: form validation; attendance saved before email; missing files, Drive failure, mail failure, Sheet failure, and invalid requests. No real emails sent.');

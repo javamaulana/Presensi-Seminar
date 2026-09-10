@@ -8,58 +8,59 @@ const CONFIG = {
 
 function doPost(e) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(15000);
-
+  let locked = false;
   try {
+    lock.waitLock(15000);
+    locked = true;
     const payload = parsePayload_(e);
     validatePayload_(payload);
-
     const sheet = getSheet_();
     const existingRow = findExistingEmailRow_(sheet, payload.email);
-    const certificateFile = findCertificateFile_(payload);
+    const rowNumber = existingRow || sheet.getLastRow() + 1;
+    const row = [new Date(), payload.fullName, payload.email, payload.studentId,
+      payload.institution, payload.eventName || CONFIG.EVENT_NAME, "", "", "Menunggu sertifikat"];
+    sheet.getRange(rowNumber, 1, 1, 9).setValues([row]);
+    SpreadsheetApp.flush();
 
-    if (certificateFile) {
+    // Attendance is durable before any Drive or email operation.
+    let sending = false;
+    try {
+      const certificateFile = findCertificateFile_(payload);
+      if (!certificateFile) {
+        sendPendingCertificateEmail_(payload);
+        return json_({ ok: true, status: "pending" });
+      }
+      const resultRange = sheet.getRange(rowNumber, 7, 1, 3);
+      resultRange.setValues([[certificateFile.getName(), certificateFile.getUrl(), "Perlu cek pengiriman"]]);
+      SpreadsheetApp.flush();
+      sending = true;
       sendCertificateEmail_(payload, certificateFile);
-    } else {
-      sendPendingCertificateEmail_(payload);
+      resultRange.setValues([[certificateFile.getName(), certificateFile.getUrl(), existingRow ? "Dikirim ulang" : "Terkirim"]]);
+      SpreadsheetApp.flush();
+      return json_({ ok: true, status: "sent" });
+    } catch (error) {
+      console.error(`Presensi baris ${rowNumber} tersimpan; sertifikat gagal: ${error.message}`);
+      return json_({ ok: true, status: sending ? "review" : "pending_error" });
     }
-
-    if (existingRow) {
-      sheet.getRange(existingRow, 1, 1, 9).setValues([[
-        new Date(),
-        payload.fullName,
-        payload.email,
-        payload.studentId,
-        payload.institution,
-        payload.eventName || CONFIG.EVENT_NAME,
-        certificateFile ? certificateFile.getName() : "",
-        certificateFile ? certificateFile.getUrl() : "",
-        certificateFile ? "Dikirim ulang" : "Menunggu sertifikat",
-      ]]);
-    } else {
-      sheet.appendRow([
-        new Date(),
-        payload.fullName,
-        payload.email,
-        payload.studentId,
-        payload.institution,
-        payload.eventName || CONFIG.EVENT_NAME,
-        certificateFile ? certificateFile.getName() : "",
-        certificateFile ? certificateFile.getUrl() : "",
-        certificateFile ? "Terkirim" : "Menunggu sertifikat",
-      ]);
-    }
-
-    return json_({
-      ok: true,
-      status: certificateFile ? "sent" : "pending",
-      certificateUrl: certificateFile ? certificateFile.getUrl() : "",
-    });
   } catch (error) {
-    return json_({ ok: false, message: error.message });
+    console.error(error.message);
+    return json_({ ok: false, message: "Presensi belum dapat dikonfirmasi tersimpan. Hubungi panitia untuk memeriksa konfigurasi dan log Apps Script." });
   } finally {
-    lock.releaseLock();
+    if (locked) lock.releaseLock();
   }
+}
+
+// Run from the editor to configure attendance independently of Drive/email.
+function setupAttendance() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  if (!spreadsheet) throw new Error("Buka Apps Script dari Google Sheet rekap presensi.");
+  PropertiesService.getScriptProperties().setProperty("ATTENDANCE_SPREADSHEET_ID", spreadsheet.getId());
+  getSheet_();
+  console.log("Rekap presensi: " + spreadsheet.getUrl());
+}
+
+function doGet() {
+  return json_({ ok: true, version: "attendance-first-v2" });
 }
 
 function parsePayload_(e) {
@@ -85,6 +86,7 @@ function getSheet_() {
   const spreadsheet = spreadsheetId
     ? SpreadsheetApp.openById(spreadsheetId)
     : SpreadsheetApp.getActiveSpreadsheet();
+  if (!spreadsheet) throw new Error("Jalankan setupAttendance dari editor Apps Script terlebih dahulu.");
   let sheet = spreadsheet.getSheetByName(CONFIG.SHEET_NAME);
 
   if (!sheet) {
@@ -141,8 +143,7 @@ function findCertificateFile_(payload) {
   }
 
   if (matches.length === 0) {
-    if (payload.institution === "Umum") return null;
-    throw new Error(`Sertifikat atas nama ${payload.fullName} belum ditemukan di folder Drive.`);
+    return null;
   }
 
   if (matches.length === 1 || !normalizedStudentId || normalizedStudentId === "-") {
