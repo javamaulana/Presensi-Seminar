@@ -14,12 +14,21 @@ function doPost(e) {
     locked = true;
     const payload = parsePayload_(e);
     validatePayload_(payload);
+    if (!/^[a-f0-9]{32}$/.test(String(payload.deviceId || ""))) {
+      return json_({ ok: false, message: "Identitas browser tidak tersedia. Muat ulang website terbaru dan izinkan penyimpanan browser." });
+    }
     const sheet = getSheet_();
+    if (sheet.getLastRow() >= 2) {
+      const devices = sheet.getRange(2, 10, sheet.getLastRow() - 1, 1).getValues();
+      if (devices.some(row => String(row[0]) === payload.deviceId)) {
+        return json_({ ok: false, code: "DEVICE_ALREADY_SUBMITTED", message: "Perangkat/browser ini sudah mengirim presensi. Pengisian hanya diperbolehkan satu kali. Hubungi panitia jika perlu koreksi." });
+      }
+    }
     // Each submission is a new attendance record, even for a shared email.
     const rowNumber = sheet.getLastRow() + 1;
     const row = [new Date(), payload.fullName, payload.email, payload.studentId,
-      payload.institution, payload.eventName || CONFIG.EVENT_NAME, "", "", "Menunggu sertifikat"];
-    sheet.getRange(rowNumber, 1, 1, 9).setValues([row]);
+      payload.institution, payload.eventName || CONFIG.EVENT_NAME, "", "", "Menunggu sertifikat", payload.deviceId];
+    sheet.getRange(rowNumber, 1, 1, 10).setValues([row]);
     SpreadsheetApp.flush();
 
     // Attendance is durable before any Drive or email operation.
@@ -60,7 +69,7 @@ function setupAttendance() {
 }
 
 function doGet() {
-  return json_({ ok: true, version: "multi-certificates-v4" });
+  return json_({ ok: true, version: "one-browser-v5" });
 }
 
 function parsePayload_(e) {
@@ -104,9 +113,11 @@ function getSheet_() {
       "File Sertifikat",
       "Link Sertifikat",
       "Status",
+      "ID Browser",
     ]);
   }
 
+  sheet.getRange(1, 10, 1, 1).setValues([["ID Browser"]]);
   return sheet;
 }
 

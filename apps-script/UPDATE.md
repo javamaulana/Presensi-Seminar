@@ -1,8 +1,25 @@
+# Batas satu kali presensi
+
+Versi `one-browser-v5` menambahkan kolom J **ID Browser** tanpa mengubah sembilan kolom rekap sebelumnya. Setiap pengiriman yang diterima tetap menjadi baris baru; ID browser yang sudah tersimpan ditolak sebelum pencatatan atau pengiriman email. Batas berlaku untuk acara ini, termasuk jika nama/email diganti, dan ID diperiksa di bawah script lock agar dua tab tidak membuat dua baris.
+
+Setelah konfirmasi penyimpanan, tombol terkunci dan statusnya disimpan di browser. Jika respons terputus sesudah server mencatat data, pengiriman berikutnya dengan ID yang sama ditolak tanpa email tambahan. Kegagalan sebelum data tersimpan tidak menghabiskan kesempatan mengisi. Antrean sertifikat tetap berjalan untuk baris yang sudah tersimpan.
+
+## Aktivasi
+
+1. Salin `Code.gs` terbaru ke Apps Script dan pertahankan ID folder sertifikat.
+2. Simpan dan perbarui deployment lama ke **New version**. URL `/exec` harus menampilkan `one-browser-v5`.
+3. Muat ulang website terbaru. Frontend menggunakan penyimpanan browser; peserta harus mengizinkannya.
+4. Untuk koreksi data atau pengiriman ulang, panitia menangani baris rekap dan status antrean; peserta tidak perlu membuka kunci atau mengisi ulang.
+
+Batas ini berlaku per browser/profil, bukan identitas HP fisik. Browser lain, mode privat, atau penghapusan penyimpanan dapat melewatinya. Catatan sebelum pembaruan belum memiliki ID browser sehingga tidak dapat dikunci retroaktif. Verifikasi kehadiran tetap diperlukan untuk mencegah titip presensi secara menyeluruh.
+
+---
+
 # Mengaktifkan alur peserta umum
 
 ## Beberapa sertifikat dalam satu email
 
-Backend versi `multi-certificates-v4` melampirkan semua file yang cocok dengan nama peserta dalam satu email, termasuk `(Panitia)`, `(Peserta)`, dan `(Pengisi Acara)`. Berlaku untuk presensi langsung maupun antrean otomatis. Kolom file dan link di rekap memuat semua lampiran, dipisahkan baris baru.
+Backend versi `one-browser-v5` melampirkan semua file yang cocok dengan nama peserta dalam satu email, termasuk `(Panitia)`, `(Peserta)`, dan `(Pengisi Acara)`. Berlaku untuk presensi langsung maupun antrean otomatis. Kolom file dan link di rekap memuat semua lampiran, dipisahkan baris baru.
 
 Gunakan nama `Sertifikat - Nama Lengkap (Peran).pdf`, atau `Sertifikat - NIM - Nama Lengkap (Peran).pdf`. Nama harus cocok lengkap; bukan sekadar potongan nama. Jika nama yang sama memiliki varian `(Umum)`, file itu hanya dikirim untuk kategori Umum; varian lainnya untuk mahasiswa. Untuk orang berbeda yang nama dan kategorinya sama, cantumkan NIM pada setiap file agar dapat dibedakan.
 
@@ -49,7 +66,7 @@ Versi terbaru menyimpan presensi sebelum mengakses Drive atau mengirim email. Ke
 1. Salin kode terbaru ke proyek yang melayani URL `CONFIG.appsScriptUrl` di `script.js`, pertahankan ID folder sertifikat yang benar.
 2. Jalankan **setupAttendance** dari editor. Fungsi ini menyimpan ID spreadsheet tujuan tanpa bergantung pada akses Drive/email, dan mencetak URL rekap di log. Data masuk ke tab **Presensi**.
 3. Perbarui deployment lama: **Deploy > Manage deployments > pensil > New version > Deploy**. Pastikan **Execute as: Me** dan akses **Anyone**. Menyimpan kode saja tidak memperbarui Web app.
-4. Buka URL `/exec` deployment di browser. Harus muncul JSON yang memuat `"version":"multi-certificates-v4"`. Jika muncul `doGet tidak ditemukan` atau halaman login, versi/akses deployment belum sesuai.
+4. Buka URL `/exec` deployment di browser. Harus muncul JSON yang memuat `"version":"one-browser-v5"`. Jika muncul `doGet tidak ditemukan` atau halaman login, versi/akses deployment belum sesuai.
 5. Uji form menggunakan email panitia dan periksa tab **Presensi**. Jika gagal, buka **Executions**, pilih eksekusi **doPost** dari Web app pada waktu pengujian, lalu baca log error. Menjalankan doPost dengan tombol Run tidak menyertakan data form.
 6. Jalankan **setupAutomaticCertificates** setelah ID folder benar untuk mengaktifkan pengiriman berkala.
 
@@ -58,8 +75,8 @@ Jika browser tidak menerima respons (misalnya karena akses deployment atau jarin
 
 ## Rekap setiap pengiriman
 
-Setiap formulir yang diterima sekarang ditambahkan sebagai baris baru. Email bukan kunci unik: beberapa peserta boleh memakai email yang sama tanpa saling menimpa. Pengisian ulang peserta yang sama juga menjadi baris baru agar riwayat presensi tetap lengkap. Pengiriman otomatis hanya memperbarui status dan informasi sertifikat pada baris antrean terkait.
+Setiap formulir yang lolos batas ID browser ditambahkan sebagai baris baru. Email bukan kunci unik: beberapa peserta boleh memakai email yang sama tanpa saling menimpa. Pengisian ulang dari ID browser yang sama ditolak; riwayat yang sudah ada tetap utuh. Pengiriman otomatis hanya memperbarui status dan informasi sertifikat pada baris antrean terkait.
 
-Salin Code.gs terbaru ke Apps Script, pertahankan ID folder yang benar, simpan, lalu perbarui deployment lama ke New version. Buka URL /exec untuk memastikan versi `multi-certificates-v4` sudah aktif. Pemicu otomatis yang sudah dipasang tidak perlu dibuat ulang.
+Salin Code.gs terbaru ke Apps Script, pertahankan ID folder yang benar, simpan, lalu perbarui deployment lama ke New version. Buka URL /exec untuk memastikan versi `one-browser-v5` sudah aktif. Pemicu otomatis yang sudah dipasang tidak perlu dibuat ulang.
 
 Baris yang tertimpa versi lama tidak dipulihkan oleh pembaruan ini. Gunakan salinan/cadangan rekap atau riwayat versi Google Sheet untuk mencari data sebelumnya; jangan menimpa seluruh rekap terbaru saat memulihkan data. Beberapa pengisian ulang yang masih menunggu bisa menghasilkan beberapa email sertifikat karena masing-masing merupakan catatan tersendiri.
