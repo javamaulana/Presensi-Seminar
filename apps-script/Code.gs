@@ -25,17 +25,17 @@ function doPost(e) {
     // Attendance is durable before any Drive or email operation.
     let sending = false;
     try {
-      const certificateFile = findCertificateFile_(payload);
-      if (!certificateFile) {
+      const certificateFiles = findCertificateFiles_(payload);
+      if (!certificateFiles.length) {
         sendPendingCertificateEmail_(payload);
         return json_({ ok: true, status: "pending" });
       }
       const resultRange = sheet.getRange(rowNumber, 7, 1, 3);
-      resultRange.setValues([[certificateFile.getName(), certificateFile.getUrl(), "Perlu cek pengiriman"]]);
+      resultRange.setValues([[certificateFiles.map(file => file.getName()).join("\n"), certificateFiles.map(file => file.getUrl()).join("\n"), "Perlu cek pengiriman"]]);
       SpreadsheetApp.flush();
       sending = true;
-      sendCertificateEmail_(payload, certificateFile);
-      resultRange.setValues([[certificateFile.getName(), certificateFile.getUrl(), "Terkirim"]]);
+      sendCertificateEmail_(payload, certificateFiles);
+      resultRange.setValues([[certificateFiles.map(file => file.getName()).join("\n"), certificateFiles.map(file => file.getUrl()).join("\n"), "Terkirim"]]);
       SpreadsheetApp.flush();
       return json_({ ok: true, status: "sent" });
     } catch (error) {
@@ -60,7 +60,7 @@ function setupAttendance() {
 }
 
 function doGet() {
-  return json_({ ok: true, version: "attendance-append-v3" });
+  return json_({ ok: true, version: "multi-certificates-v4" });
 }
 
 function parsePayload_(e) {
@@ -110,35 +110,31 @@ function getSheet_() {
   return sheet;
 }
 
-function findCertificateFile_(payload) {
-  const folder = DriveApp.getFolderById(CONFIG.CERTIFICATE_FOLDER_ID);
-  const files = folder.getFiles();
-  const normalizedName = normalizeText_(payload.fullName);
-  const normalizedStudentId = normalizeText_(payload.studentId || "");
+function findCertificateFiles_(payload) {
+  const files = DriveApp.getFolderById(CONFIG.CERTIFICATE_FOLDER_ID).getFiles();
+  const targetName = normalizeText_(payload.fullName);
+  const targetId = String(payload.studentId || "").trim();
   const matches = [];
-
   while (files.hasNext()) {
     const file = files.next();
-    const fileName = normalizeText_(removeExtension_(file.getName()));
-
-    if (fileName.includes(normalizedName)) {
-      matches.push(file);
+    let name = removeExtension_(file.getName()).trim();
+    const roleMatch = name.match(/\s*\((Panitia|Peserta|Pengisi Acara|Umum)\)\s*$/i);
+    const role = roleMatch ? roleMatch[1].toLowerCase() : "";
+    if (roleMatch) name = name.slice(0, roleMatch.index).trim();
+    name = name.replace(/^sertifikat\s*-\s*/i, "");
+    const idMatch = name.match(/^(\d+)\s*-\s*/);
+    if (idMatch) {
+      if (idMatch[1] !== targetId) continue;
+      name = name.slice(idMatch[0].length);
     }
+    if (normalizeText_(name) === targetName) matches.push({ file, role });
   }
-
-  if (matches.length === 0) {
-    return null;
-  }
-
-  if (matches.length === 1 || !normalizedStudentId || normalizedStudentId === "-") {
-    return matches[0];
-  }
-
-  const studentIdMatch = matches.find((file) => {
-    return normalizeText_(file.getName()).includes(normalizedStudentId);
-  });
-
-  return studentIdMatch || matches[0];
+  // Explicit Umum variants distinguish same-name participants across categories.
+  const hasGeneralVariant = matches.some(match => match.role === "umum");
+  return matches.filter(match => !hasGeneralVariant ||
+    (payload.institution === "Umum" ? match.role === "umum" : match.role !== "umum"))
+    .map(match => match.file)
+    .sort((a, b) => a.getName().localeCompare(b.getName()));
 }
 
 function normalizeText_(value) {
@@ -155,12 +151,12 @@ function removeExtension_(fileName) {
   return String(fileName).replace(/\.[^/.]+$/, "");
 }
 
-function sendCertificateEmail_(payload, certificateFile) {
+function sendCertificateEmail_(payload, certificateFiles) {
   const body = [
     `Halo ${payload.fullName},`,
     "",
     `Terima kasih sudah mengikuti ${payload.eventName || CONFIG.EVENT_NAME}.`,
-    `Sertifikat kamu terlampir dalam email ini.`,
+    `${certificateFiles.length} sertifikat Anda terlampir dalam email ini.`,
     "",
     `Salam,`,
     CONFIG.ORGANIZER_NAME,
@@ -170,7 +166,7 @@ function sendCertificateEmail_(payload, certificateFile) {
     to: payload.email,
     subject: CONFIG.EMAIL_SUBJECT,
     body,
-    attachments: [certificateFile.getBlob()],
+    attachments: certificateFiles.map(file => file.getBlob()),
     name: CONFIG.ORGANIZER_NAME,
   });
 }
@@ -223,15 +219,15 @@ function sendPendingCertificates() {
       };
       try {
         validatePayload_(payload);
-        const file = findCertificateFile_(payload);
-        if (!file) continue;
+        const certificateFiles = findCertificateFiles_(payload);
+        if (!certificateFiles.length) continue;
         const resultRange = sheet.getRange(index + 2, 7, 1, 3);
         // Interrupted sends require review to avoid duplicate emails.
-        resultRange.setValues([[file.getName(), file.getUrl(), "Perlu cek pengiriman"]]);
+        resultRange.setValues([[certificateFiles.map(file => file.getName()).join("\n"), certificateFiles.map(file => file.getUrl()).join("\n"), "Perlu cek pengiriman"]]);
         SpreadsheetApp.flush();
-        sendCertificateEmail_(payload, file);
+        sendCertificateEmail_(payload, certificateFiles);
         quota -= 1;
-        resultRange.setValues([[file.getName(), file.getUrl(), "Terkirim otomatis"]]);
+        resultRange.setValues([[certificateFiles.map(file => file.getName()).join("\n"), certificateFiles.map(file => file.getUrl()).join("\n"), "Terkirim otomatis"]]);
         SpreadsheetApp.flush();
       } catch (error) {
         console.error(`Baris ${index + 2}: ${error.message}`);

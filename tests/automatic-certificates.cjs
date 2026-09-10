@@ -9,14 +9,14 @@ const sheet = { getLastRow: () => rows.length + 1, getRange: (r, c) => ({
   setValues: values => values[0].forEach((v, i) => rows[r - 2][c - 1 + i] = v),
 }) };
 const spreadsheet = { getId: () => 'sheet-id', getSheetByName: () => sheet };
-const file = { getName: () => 'Peserta Ada.pdf', getUrl: () => 'url', getBlob: () => 'pdf' };
+const files = ['Panitia', 'Peserta', 'Pengisi Acara'].map(role => ({ getName: () => `Sertifikat - Peserta Ada (${role}).pdf`, getUrl: () => 'url/' + role, getBlob: () => role }));
 const context = vm.createContext({
   console: { error() {} },
   PropertiesService: { getScriptProperties: () => ({ getProperty: () => savedId, setProperty: (_, id) => savedId = id }) },
   SpreadsheetApp: { getActiveSpreadsheet: () => spreadsheet, openById: id => { assert.equal(id, 'sheet-id'); return spreadsheet; }, flush() {} },
   LockService: { getScriptLock: () => ({ tryLock: () => !locked, releaseLock() {} }) },
-  MailApp: { getRemainingDailyQuota: () => quota, sendEmail: () => { if (fail) throw Error('mail failure'); sent++; } },
-  DriveApp: { getFolderById: () => ({ getName: () => 'Certificates', getFiles: () => { let available = true; return { hasNext: () => available, next: () => { available = false; return file; } }; } }) },
+  MailApp: { getRemainingDailyQuota: () => quota, sendEmail: email => { assert.equal(email.attachments.length, 3); if (fail) throw Error('mail failure'); sent++; } },
+  DriveApp: { getFolderById: () => ({ getName: () => 'Certificates', getFiles: () => { const remaining = [...files]; return { hasNext: () => remaining.length > 0, next: () => remaining.shift() }; } }) },
   ScriptApp: { getProjectTriggers: () => triggers, newTrigger: handler => ({ timeBased: () => ({ everyMinutes: n => { assert.equal(n, 5); return { create: () => triggers.push({ getHandlerFunction: () => handler }) }; } }) }) },
 });
 vm.runInContext(fs.readFileSync('apps-script/Code.gs', 'utf8'), context);

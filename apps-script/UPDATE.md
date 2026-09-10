@@ -1,5 +1,15 @@
 # Mengaktifkan alur peserta umum
 
+## Beberapa sertifikat dalam satu email
+
+Backend versi `multi-certificates-v4` melampirkan semua file yang cocok dengan nama peserta dalam satu email, termasuk `(Panitia)`, `(Peserta)`, dan `(Pengisi Acara)`. Berlaku untuk presensi langsung maupun antrean otomatis. Kolom file dan link di rekap memuat semua lampiran, dipisahkan baris baru.
+
+Gunakan nama `Sertifikat - Nama Lengkap (Peran).pdf`, atau `Sertifikat - NIM - Nama Lengkap (Peran).pdf`. Nama harus cocok lengkap; bukan sekadar potongan nama. Jika nama yang sama memiliki varian `(Umum)`, file itu hanya dikirim untuk kategori Umum; varian lainnya untuk mahasiswa. Untuk orang berbeda yang nama dan kategorinya sama, cantumkan NIM pada setiap file agar dapat dibedakan.
+
+Unggah semua sertifikat orang tersebut sebelum diproses. File tambahan yang baru diunggah setelah status terkirim tidak otomatis memicu email baru. Untuk mengirim ulang semua lampiran, ubah satu baris terkait menjadi **Menunggu sertifikat**, lalu jalankan `sendPendingCertificates` atau tunggu pemicu berikutnya.
+
+Salin kode terbaru, pertahankan ID folder aktif, dan perbarui deployment lama ke versi baru. Pemicu yang sudah ada tidak perlu dipasang ulang. PDF sertifikat dan pemetaan lokal tidak dipush ke GitHub.
+
 Frontend memakai empat peserta yang diberikan panitia, yaitu peserta yang menjawab **Tidak** pada pertanyaan mata kuliah kewirausahaan. Daftar `GENERAL_PARTICIPANTS` di `script.js` belum tersinkron otomatis dengan Google Sheet; tambahkan peserta baru di daftar tersebut, atau gunakan pilihan isi manual.
 
 ## Pembaruan backend yang wajib dilakukan
@@ -39,7 +49,7 @@ Versi terbaru menyimpan presensi sebelum mengakses Drive atau mengirim email. Ke
 1. Salin kode terbaru ke proyek yang melayani URL `CONFIG.appsScriptUrl` di `script.js`, pertahankan ID folder sertifikat yang benar.
 2. Jalankan **setupAttendance** dari editor. Fungsi ini menyimpan ID spreadsheet tujuan tanpa bergantung pada akses Drive/email, dan mencetak URL rekap di log. Data masuk ke tab **Presensi**.
 3. Perbarui deployment lama: **Deploy > Manage deployments > pensil > New version > Deploy**. Pastikan **Execute as: Me** dan akses **Anyone**. Menyimpan kode saja tidak memperbarui Web app.
-4. Buka URL `/exec` deployment di browser. Harus muncul JSON yang memuat `"version":"attendance-append-v3"`. Jika muncul `doGet tidak ditemukan` atau halaman login, versi/akses deployment belum sesuai.
+4. Buka URL `/exec` deployment di browser. Harus muncul JSON yang memuat `"version":"multi-certificates-v4"`. Jika muncul `doGet tidak ditemukan` atau halaman login, versi/akses deployment belum sesuai.
 5. Uji form menggunakan email panitia dan periksa tab **Presensi**. Jika gagal, buka **Executions**, pilih eksekusi **doPost** dari Web app pada waktu pengujian, lalu baca log error. Menjalankan doPost dengan tombol Run tidak menyertakan data form.
 6. Jalankan **setupAutomaticCertificates** setelah ID folder benar untuk mengaktifkan pengiriman berkala.
 
@@ -50,6 +60,6 @@ Jika browser tidak menerima respons (misalnya karena akses deployment atau jarin
 
 Setiap formulir yang diterima sekarang ditambahkan sebagai baris baru. Email bukan kunci unik: beberapa peserta boleh memakai email yang sama tanpa saling menimpa. Pengisian ulang peserta yang sama juga menjadi baris baru agar riwayat presensi tetap lengkap. Pengiriman otomatis hanya memperbarui status dan informasi sertifikat pada baris antrean terkait.
 
-Salin Code.gs terbaru ke Apps Script, pertahankan ID folder yang benar, simpan, lalu perbarui deployment lama ke New version. Buka URL /exec untuk memastikan versi `attendance-append-v3` sudah aktif. Pemicu otomatis yang sudah dipasang tidak perlu dibuat ulang.
+Salin Code.gs terbaru ke Apps Script, pertahankan ID folder yang benar, simpan, lalu perbarui deployment lama ke New version. Buka URL /exec untuk memastikan versi `multi-certificates-v4` sudah aktif. Pemicu otomatis yang sudah dipasang tidak perlu dibuat ulang.
 
 Baris yang tertimpa versi lama tidak dipulihkan oleh pembaruan ini. Gunakan salinan/cadangan rekap atau riwayat versi Google Sheet untuk mencari data sebelumnya; jangan menimpa seluruh rekap terbaru saat memulihkan data. Beberapa pengisian ulang yang masih menunggu bisa menghasilkan beberapa email sertifikat karena masing-masing merupakan catatan tersendiri.

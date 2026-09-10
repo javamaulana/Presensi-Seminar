@@ -71,7 +71,7 @@ Sertifikat - 2410432045 - Mutiara Aviva.pdf
 - Buka URL `/exec` untuk memeriksa versi backend:
 
 ```json
-{"ok":true,"version":"attendance-append-v3"}
+{"ok":true,"version":"multi-certificates-v4"}
 ```
 
 ### 3. Aktifkan pengiriman otomatis
