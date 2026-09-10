@@ -15,8 +15,8 @@ function doPost(e) {
     const payload = parsePayload_(e);
     validatePayload_(payload);
     const sheet = getSheet_();
-    const existingRow = findExistingEmailRow_(sheet, payload.email);
-    const rowNumber = existingRow || sheet.getLastRow() + 1;
+    // Each submission is a new attendance record, even for a shared email.
+    const rowNumber = sheet.getLastRow() + 1;
     const row = [new Date(), payload.fullName, payload.email, payload.studentId,
       payload.institution, payload.eventName || CONFIG.EVENT_NAME, "", "", "Menunggu sertifikat"];
     sheet.getRange(rowNumber, 1, 1, 9).setValues([row]);
@@ -35,7 +35,7 @@ function doPost(e) {
       SpreadsheetApp.flush();
       sending = true;
       sendCertificateEmail_(payload, certificateFile);
-      resultRange.setValues([[certificateFile.getName(), certificateFile.getUrl(), existingRow ? "Dikirim ulang" : "Terkirim"]]);
+      resultRange.setValues([[certificateFile.getName(), certificateFile.getUrl(), "Terkirim"]]);
       SpreadsheetApp.flush();
       return json_({ ok: true, status: "sent" });
     } catch (error) {
@@ -60,7 +60,7 @@ function setupAttendance() {
 }
 
 function doGet() {
-  return json_({ ok: true, version: "attendance-first-v2" });
+  return json_({ ok: true, version: "attendance-append-v3" });
 }
 
 function parsePayload_(e) {
@@ -108,22 +108,6 @@ function getSheet_() {
   }
 
   return sheet;
-}
-
-function findExistingEmailRow_(sheet, email) {
-  const lastRow = sheet.getLastRow();
-  if (lastRow < 2) return 0;
-
-  const values = sheet.getRange(2, 3, lastRow - 1, 1).getValues();
-  const target = String(email).toLowerCase();
-
-  for (let index = 0; index < values.length; index += 1) {
-    if (String(values[index][0]).toLowerCase() === target) {
-      return index + 2;
-    }
-  }
-
-  return 0;
 }
 
 function findCertificateFile_(payload) {
